@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
 import { api } from "../api";
 import {
-  DropPayload,
   FolderItem,
   Hub,
   MenuItem,
@@ -36,12 +36,12 @@ export function PieApp() {
     null,
   );
   const [dragId, setDragId] = useState<string | null>(null);
+  const [filesOver, setFilesOver] = useState(false);
   const [notice, setNotice] = useState("");
   const dwellRef = useRef<number | null>(null);
   const leaveRef = useRef<number | null>(null);
   const sessionRef = useRef<PieSession | null>(null);
   const itemsRef = useRef<MenuItem[]>([]);
-  const wedgesRef = useRef(layoutWedges(1));
   const pathRef = useRef<string[]>([]);
 
   useEffect(() => {
@@ -65,11 +65,24 @@ export function PieApp() {
       unlistenSession = fn;
     });
 
-    listen<DropPayload>("files-dropped", (e) => {
-      void handleDrop(e.payload);
-    }).then((fn) => {
-      unlistenDrop = fn;
-    });
+    let disposed = false;
+    void getCurrentWebview()
+      .onDragDropEvent((event) => {
+        const current = sessionRef.current;
+        if (!current?.edit) return;
+        if (event.payload.type === "enter" || event.payload.type === "over") {
+          setFilesOver(true);
+        } else if (event.payload.type === "drop") {
+          setFilesOver(false);
+          void addPaths(event.payload.paths);
+        } else {
+          setFilesOver(false);
+        }
+      })
+      .then((fn) => {
+        if (disposed) fn();
+        else unlistenDrop = fn;
+      });
 
     const onKey = (ev: KeyboardEvent) => {
       if (ev.key === "Escape") {
@@ -80,6 +93,7 @@ export function PieApp() {
     };
     window.addEventListener("keydown", onKey);
     return () => {
+      disposed = true;
       unlistenSession?.();
       unlistenDrop?.();
       window.removeEventListener("keydown", onKey);
@@ -95,7 +109,6 @@ export function PieApp() {
 
   sessionRef.current = session;
   itemsRef.current = items;
-  wedgesRef.current = wedges;
   pathRef.current = path;
 
   function clearDwell() {
@@ -149,19 +162,6 @@ export function PieApp() {
     setSession((s) => (s ? { ...s, hub: { ...s.hub, items: tree } } : s));
     setCtx(null);
     setNotice(`${add.length} shortcut${add.length === 1 ? "" : "s"} added.`);
-  }
-
-  async function handleDrop(drop: DropPayload) {
-    const current = sessionRef.current;
-    if (!current?.edit) return;
-    const idx = hitWedge(
-      drop.x,
-      drop.y,
-      current.centerX,
-      current.centerY,
-      wedgesRef.current,
-    );
-    await addPaths(drop.paths, idx);
   }
 
   async function pickShortcuts() {
@@ -412,12 +412,35 @@ export function PieApp() {
       </div>
 
       {emptyEdit && (
-        <div className="empty-hint" style={{ left: cx, top: cy + 88 }}>
-          Click the ring to choose shortcuts, or drop them here. Right-click to make a folder.
+        <div className="empty-actions" style={{ left: cx, top: cy + 76 }}>
+          <button
+            type="button"
+            className="empty-add"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              void pickShortcuts();
+            }}
+          >
+            <span>+</span> Add shortcuts
+          </button>
+          <button
+            type="button"
+            className="empty-folder"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              void addFolder();
+            }}
+          >
+            New folder
+          </button>
+          <small>or drop desktop shortcuts anywhere here</small>
         </div>
       )}
 
       {notice && <div className="pie-notice">{notice}</div>}
+      {filesOver && <div className="drop-overlay">Drop to add</div>}
 
       {!emptyEdit &&
         wedges.map((w, i) => {

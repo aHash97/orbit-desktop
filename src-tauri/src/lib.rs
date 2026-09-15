@@ -9,8 +9,8 @@ use serde::Serialize;
 use tauri::menu::{Menu, MenuItem as TrayMenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, TrayIconBuilder, TrayIconEvent};
 use tauri::{
-    AppHandle, DragDropEvent, Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewUrl,
-    WebviewWindow, WebviewWindowBuilder, WindowEvent,
+    AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow,
+    WebviewWindowBuilder, WindowEvent,
 };
 use tauri_plugin_autostart::MacosLauncher;
 
@@ -37,14 +37,6 @@ struct PieSession {
     center_y: f64,
     width: f64,
     height: f64,
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct DropPayload {
-    paths: Vec<String>,
-    x: f64,
-    y: f64,
 }
 
 #[tauri::command]
@@ -513,6 +505,7 @@ fn spawn_orb(app: &AppHandle, hub: &Hub) -> Result<(), String> {
         .visible(false)
         .focused(false)
         .accept_first_mouse(true)
+        .drag_and_drop(true)
         .inner_size(ORB_SIZE, ORB_SIZE)
         .build()
         .map_err(|e| e.to_string())?;
@@ -669,22 +662,8 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if window.label() == "pie" {
-                if let WindowEvent::DragDrop(DragDropEvent::Drop { paths, position }) = event {
-                    let scale = window.scale_factor().unwrap_or(1.0);
-                    let payload = DropPayload {
-                        paths: paths
-                            .iter()
-                            .map(|p| p.to_string_lossy().to_string())
-                            .collect(),
-                        x: position.x / scale,
-                        y: position.y / scale,
-                    };
-                    let _ = window.emit("files-dropped", payload);
-                }
-                if matches!(event, WindowEvent::Focused(false)) {
-                    // keep pie while editing; normal mode stays until leave/esc from UI
-                }
+            if window.label() == "pie" && matches!(event, WindowEvent::Focused(false)) {
+                // keep pie while editing; normal mode stays until leave/esc from UI
             }
             if window.label() == "settings" {
                 if let WindowEvent::CloseRequested { api, .. } = event {
