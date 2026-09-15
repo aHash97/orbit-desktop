@@ -2,9 +2,11 @@
 name = "orbit"
 version = "0.1.0"
 description = "Desktop hub orbs for launching shortcuts"
-authors = ["Orbit"]
+authors = ["aHash97"]
 edition = "2021"
 license = "MIT"
+homepage = "https://github.com/aHash97/orbit-desktop"
+repository = "https://github.com/aHash97/orbit-desktop"
 
 [lib]
 name = "orbit_lib"

@@ -23,6 +23,16 @@ Orbit never scans or relocates the shortcuts already on your desktop. You pick w
 - [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) (already on most Windows 11 machines)
 - For development: Node.js 22+, Rust (MSVC), Visual Studio Build Tools with the C++ workload
 
+## Install
+
+Download the Windows `.exe` installer from the [latest GitHub release](https://github.com/aHash97/orbit-desktop/releases/latest).
+
+Once the initial WinGet package is accepted into the community repository, Orbit can also be installed and upgraded from a terminal:
+
+```powershell
+winget install --id aHash97.Orbit --exact
+```
+
 ## Develop
 
 ```bash
@@ -42,6 +52,8 @@ npm run tauri build
 ```
 
 The NSIS installer lands in `src-tauri/target/release/bundle/nsis/`. It is unsigned in v1, so SmartScreen will complain until you sign it.
+
+Pushing a version tag such as `v0.1.0` builds the installer and publishes it with a SHA-256 checksum on GitHub Releases.
 
 ## Why not a real desktop icon?
 
