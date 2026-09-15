@@ -1,0 +1,460 @@
+:root {
+  --accent: #7eb8d4;
+  --ink: #e8eef4;
+  --muted: rgba(232, 238, 244, 0.62);
+  --glass: rgba(10, 14, 20, 0.72);
+  --glass-2: rgba(18, 24, 34, 0.55);
+  --line: rgba(255, 255, 255, 0.14);
+  --danger: #e07a7a;
+  color: var(--ink);
+  font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.hidden-main {
+  width: 1px;
+  height: 1px;
+}
+
+.hub-control {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.section-heading,
+.hub-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-heading {
+  justify-content: space-between;
+}
+
+.section-heading h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.section-heading p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.hub-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.hub-row {
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.hub-dot {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--accent) 45%, #0c1218);
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.hub-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Orbs --------------------------------------------------- */
+
+.orb {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.orb-disc {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -0.04em;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.22), transparent 42%),
+    radial-gradient(circle at 50% 55%, color-mix(in srgb, var(--accent) 35%, #0c1218), #0b0f14);
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 0 0 6px color-mix(in srgb, var(--accent) 22%, transparent),
+    0 10px 24px rgba(0, 0, 0, 0.35);
+  animation: breathe 3.6s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px var(--line),
+      0 0 0 6px color-mix(in srgb, var(--accent) 18%, transparent),
+      0 10px 24px rgba(0, 0, 0, 0.35);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--accent) 55%, white),
+      0 0 0 8px color-mix(in srgb, var(--accent) 32%, transparent),
+      0 12px 28px rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* Pie ---------------------------------------------------- */
+
+.pie-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  animation: bloom 180ms ease-out;
+}
+
+.pie-root.idle {
+  pointer-events: none;
+}
+
+@keyframes bloom {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.pie-svg {
+  position: absolute;
+  inset: 0;
+}
+
+.glass-disc {
+  fill: var(--glass);
+  stroke: var(--line);
+  stroke-width: 1.25;
+}
+
+.wedge {
+  fill: var(--glass-2);
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 1;
+  transition: fill 120ms ease;
+}
+
+.wedge.hot {
+  fill: color-mix(in srgb, var(--accent) 28%, rgba(20, 26, 36, 0.72));
+}
+
+.wedge.folder {
+  fill: color-mix(in srgb, var(--accent) 12%, rgba(16, 22, 32, 0.6));
+}
+
+.wedge.plus {
+  fill: rgba(255, 255, 255, 0.04);
+  stroke-dasharray: 5 5;
+}
+
+.empty-ring {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 8 10;
+  opacity: 0.7;
+}
+
+.center-disc {
+  fill: rgba(8, 12, 18, 0.92);
+  stroke: color-mix(in srgb, var(--accent) 70%, white);
+  stroke-width: 1.5;
+}
+
+.center-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+  width: 110px;
+}
+
+.center-kicker {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.center-title {
+  font-size: 15px;
+  font-weight: 650;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.empty-hint {
+  position: absolute;
+  transform: translate(-50%, 0);
+  width: 220px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.wedge-ui {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 72px;
+  pointer-events: none;
+}
+
+.wedge-name {
+  font-size: 11px;
+  text-align: center;
+  max-width: 70px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--muted);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8);
+}
+
+.wedge-ui.hot .wedge-name {
+  color: var(--ink);
+}
+
+.icon-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  position: relative;
+}
+
+.icon-wrap img {
+  width: 32px;
+  height: 32px;
+}
+
+.icon-wrap.letter {
+  font-weight: 700;
+}
+
+.folder-icon {
+  color: var(--accent);
+}
+
+.folder-pip {
+  position: absolute;
+  margin-top: -44px;
+  margin-left: 28px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+.plus-mark {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  color: var(--muted);
+}
+
+.done-btn {
+  position: absolute;
+  transform: translate(-50%, 0);
+  border: 0;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 80%, white);
+  color: #101418;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.ctx {
+  position: absolute;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  min-width: 160px;
+  border-radius: 12px;
+  background: rgba(16, 20, 28, 0.94);
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 16px 40px rgba(0, 0, 0, 0.45);
+  z-index: 5;
+}
+
+.ctx li {
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ctx li:hover {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.rename {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 6;
+}
+
+.rename input {
+  width: 160px;
+  border: 0;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #0e141c;
+  color: var(--ink);
+  outline: 1px solid var(--accent);
+  font: inherit;
+}
+
+/* Settings ---------------------------------------------- */
+
+.settings {
+  height: 100%;
+  padding: 28px;
+  background: linear-gradient(180deg, #141a22, #0e1319);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.settings header {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.settings h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.settings header p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.settings .mark {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, var(--accent), transparent 58%),
+    #0c1016;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.settings label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.settings label.row {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.settings input[type="color"] {
+  width: 64px;
+  height: 32px;
+  border: 0;
+  background: transparent;
+}
+
+.settings .hint {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.settings code {
+  font-family: "Cascadia Code", Consolas, monospace;
+}
+
+.settings .actions {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings .primary {
+  border: 0;
+  background: #7eb8d4;
+  color: #101418;
+  font-weight: 650;
+  padding: 9px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.settings .status {
+  color: var(--muted);
+  font-size: 13px;
+}
