@@ -45,11 +45,6 @@ export type PieSession = {
   height: number;
 };
 
-export type DropPayload = {
-  paths: string[];
-  x: number;
-  y: number;
-};
 
 export function isFolder(item: MenuItem): item is FolderItem {
   return item.type === "folder";

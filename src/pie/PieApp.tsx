@@ -346,7 +346,9 @@ export function PieApp() {
 
   return (
     <div
-      className={`pie-root ${edit ? "edit" : ""}`}
+      className={`pie-root ${edit ? "edit" : ""} ${
+        items.length <= 4 ? "sparse" : items.length <= 8 ? "medium" : "dense"
+      }`}
       style={{ ["--accent" as string]: session.accent }}
       onPointerMove={onMove}
       onPointerLeave={() => {
@@ -409,6 +411,19 @@ export function PieApp() {
       <div className="center-label" style={{ left: cx, top: cy }}>
         <div className="center-kicker">{path.length ? "Back" : edit ? "Edit" : "Orbit"}</div>
         <div className="center-title">{title}</div>
+        {edit && (
+          <button
+            type="button"
+            className="center-done"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              void api.closePie();
+            }}
+          >
+            Done
+          </button>
+        )}
       </div>
 
       {emptyEdit && (
@@ -435,18 +450,22 @@ export function PieApp() {
           >
             New folder
           </button>
-          <small>or drop desktop shortcuts anywhere here</small>
         </div>
       )}
 
       {notice && <div className="pie-notice">{notice}</div>}
-      {filesOver && <div className="drop-overlay">Drop to add</div>}
+      {filesOver && (
+        <div className="drop-overlay" style={{ left: cx, top: cy }}>
+          Drop to add
+        </div>
+      )}
 
       {!emptyEdit &&
         wedges.map((w, i) => {
           const item = items[i];
           const isPlus = plus && i === items.length;
-          const [lx, ly] = polar(cx, cy, 138, w.mid);
+          const iconRadius = items.length <= 4 ? 124 : items.length <= 8 ? 128 : 132;
+          const [lx, ly] = polar(cx, cy, iconRadius, w.mid);
           return (
             <div
               key={item?.id ?? `plus-label-${i}`}
@@ -468,17 +487,6 @@ export function PieApp() {
             </div>
           );
         })}
-
-      {edit && (
-        <button
-          className="done-btn"
-          style={{ left: cx, top: cy + OUTER_R + 28 }}
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={() => void api.closePie()}
-        >
-          Done
-        </button>
-      )}
 
       {ctx && (
         <ul

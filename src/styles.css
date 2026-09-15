@@ -240,23 +240,27 @@ body,
   text-overflow: ellipsis;
 }
 
-.empty-hint {
-  position: absolute;
-  transform: translate(-50%, 0);
-  width: 220px;
-  text-align: center;
-  color: var(--muted);
-  font-size: 13px;
-  pointer-events: none;
-}
-
 .empty-actions {
   position: absolute;
   transform: translateX(-50%);
   width: 230px;
   display: grid;
   justify-items: center;
-  gap: 7px;
+  gap: 8px;
+}
+
+.center-done {
+  pointer-events: auto;
+  margin-top: 7px;
+  border: 0;
+  border-radius: 999px;
+  padding: 3px 11px 4px;
+  background: color-mix(in srgb, var(--accent) 82%, white);
+  color: #101418;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .empty-actions button {
@@ -286,19 +290,16 @@ body,
   font-size: 12px;
 }
 
-.empty-actions small {
-  color: var(--muted);
-  font-size: 10px;
-}
-
 .drop-overlay {
   position: absolute;
-  inset: 10px;
+  width: 356px;
+  height: 356px;
+  transform: translate(-50%, -50%);
   z-index: 20;
   display: grid;
   place-items: center;
   border: 2px dashed var(--accent);
-  border-radius: 24px;
+  border-radius: 50%;
   background: rgba(8, 12, 18, 0.82);
   color: var(--ink);
   font-size: 18px;
@@ -331,6 +332,37 @@ body,
   gap: 4px;
   width: 82px;
   pointer-events: none;
+}
+
+.pie-root.medium .icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 15px;
+}
+
+.pie-root.medium .icon-wrap img {
+  width: 48px;
+  height: 48px;
+}
+
+.pie-root.sparse .wedge-ui {
+  width: 104px;
+}
+
+.pie-root.sparse .wedge-name {
+  max-width: 102px;
+  font-size: 14px;
+}
+
+.pie-root.sparse .icon-wrap {
+  width: 64px;
+  height: 64px;
+  border-radius: 17px;
+}
+
+.pie-root.sparse .icon-wrap img {
+  width: 56px;
+  height: 56px;
 }
 
 .wedge-name {
@@ -373,6 +405,16 @@ body,
   color: var(--accent);
 }
 
+.pie-root.medium .folder-icon svg {
+  width: 36px;
+  height: 36px;
+}
+
+.pie-root.sparse .folder-icon svg {
+  width: 42px;
+  height: 42px;
+}
+
 .folder-pip {
   position: absolute;
   margin-top: -52px;
@@ -391,18 +433,6 @@ body,
   place-items: center;
   font-size: 32px;
   color: var(--muted);
-}
-
-.done-btn {
-  position: absolute;
-  transform: translate(-50%, 0);
-  border: 0;
-  padding: 8px 18px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 80%, white);
-  color: #101418;
-  font-weight: 650;
-  cursor: pointer;
 }
 
 .ctx {

@@ -1,5 +1,5 @@
 export const OUTER_R = 160;
-export const INNER_R = 54;
+export const INNER_R = 62;
 export const ICON_R = 108;
 export const GAP = (Math.PI / 180) * 3;
 

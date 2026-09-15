@@ -380,13 +380,17 @@ fn ensure_pie_window(app: &AppHandle) -> Result<WebviewWindow, String> {
         .skip_taskbar(true)
         .always_on_top(true)
         .resizable(false)
-        .visible(false)
+        // WebView2/Wry does not register file-drop targets for windows that are
+        // hidden when created. Build it visibly off-screen, then hide it.
+        .position(-10_000.0, -10_000.0)
+        .visible(true)
         .focused(false)
         .accept_first_mouse(true)
         .drag_and_drop(true)
         .inner_size(PIE_WIDTH as f64, PIE_HEIGHT as f64)
         .build()
         .map_err(|e| e.to_string())?;
+    let _ = win.hide();
     let _ = desktop::apply_tool_window(&win);
     Ok(win)
 }
@@ -502,7 +506,10 @@ fn spawn_orb(app: &AppHandle, hub: &Hub) -> Result<(), String> {
         .maximizable(false)
         .minimizable(false)
         .closable(false)
-        .visible(false)
+        // See ensure_pie_window: initial visibility is required for Windows
+        // file-drop registration. The empty orb is transparent while loading.
+        .position(-10_000.0, -10_000.0)
+        .visible(true)
         .focused(false)
         .accept_first_mouse(true)
         .drag_and_drop(true)
