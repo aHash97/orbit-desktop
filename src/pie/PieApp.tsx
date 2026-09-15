@@ -464,8 +464,11 @@ export function PieApp() {
         wedges.map((w, i) => {
           const item = items[i];
           const isPlus = plus && i === items.length;
-          const iconRadius = items.length <= 4 ? 124 : items.length <= 8 ? 128 : 132;
-          const [lx, ly] = polar(cx, cy, iconRadius, w.mid);
+          // Position the complete icon + label block in the middle of the annulus.
+          // The previous radius treated this as the icon's center even though CSS
+          // centers the full stack, which pushed the outer half through the rim.
+          const itemRadius = items.length <= 4 ? 110 : items.length <= 8 ? 112 : 114;
+          const [lx, ly] = polar(cx, cy, itemRadius, w.mid);
           return (
             <div
               key={item?.id ?? `plus-label-${i}`}
