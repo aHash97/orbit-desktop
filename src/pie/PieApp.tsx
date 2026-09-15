@@ -469,7 +469,9 @@ export function PieApp() {
           return (
             <div
               key={item?.id ?? `plus-label-${i}`}
-              className={`wedge-ui ${hover === i ? "hot" : ""}`}
+              className={`wedge-ui ${Math.sin(w.mid) > 0.15 ? "lower" : "upper"} ${
+                hover === i ? "hot" : ""
+              }`}
               style={{ left: lx, top: ly }}
             >
               {item ? (

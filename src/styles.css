@@ -334,6 +334,12 @@ body,
   pointer-events: none;
 }
 
+/* Keep labels on the inner side of the ring instead of pushing the lower
+   shortcuts and their names through the outside edge. */
+.wedge-ui.lower {
+  flex-direction: column-reverse;
+}
+
 .pie-root.medium .icon-wrap {
   width: 56px;
   height: 56px;
