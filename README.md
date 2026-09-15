@@ -13,7 +13,7 @@ Orbit is **not** a Kando clone. It does not hook Explorer, it does not move your
 - **Folders** open on a short dwell (~250ms) or a click.
 - **Shortcuts** launch on click.
 - A ring holds **at most 12 items**. More than that: make a subfolder.
-- Edit mode: drop `.lnk` / `.exe` / `.url` files onto wedges, drag to reorder, right-click to rename, delete, or add a folder.
+- Edit mode: click **Add files** to choose `.lnk` / `.exe` / `.url` files, or drop them onto the ring. Drag items to reorder; right-click to rename, delete, or add a folder.
 
 Orbit never scans or relocates the shortcuts already on your desktop. You pick what goes in a hub.
 

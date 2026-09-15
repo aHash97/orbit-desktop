@@ -343,12 +343,14 @@ fn pie_session_from(
     let hub = config::find_hub(&cfg, id)?.clone();
     let pie = app.get_webview_window("pie").ok_or("Pie window missing")?;
     let size = pie.inner_size().map_err(|e| e.to_string())?;
-    let (raw_cx, raw_cy) =
-        orb_center_in_pie(app, id).unwrap_or((size.width as f64 / 2.0, size.height as f64 / 2.0));
+    let scale = pie.scale_factor().unwrap_or(1.0);
+    let width = size.width as f64 / scale;
+    let height = size.height as f64 / scale;
+    let (raw_cx, raw_cy) = orb_center_in_pie(app, id).unwrap_or((width / 2.0, height / 2.0));
     // If a hub sits against a monitor edge, detach the ring slightly from the
     // orb rather than rendering half of the menu off-screen.
-    let cx = raw_cx.clamp(PIE_SAFE_RADIUS, size.width as f64 - PIE_SAFE_RADIUS);
-    let cy = raw_cy.clamp(PIE_SAFE_RADIUS, size.height as f64 - 245.0);
+    let cx = raw_cx.clamp(PIE_SAFE_RADIUS, width - PIE_SAFE_RADIUS);
+    let cy = raw_cy.clamp(PIE_SAFE_RADIUS, height - 245.0);
     Ok(PieSession {
         hub,
         edit,
@@ -357,8 +359,8 @@ fn pie_session_from(
         screenshot,
         center_x: cx,
         center_y: cy,
-        width: size.width as f64,
-        height: size.height as f64,
+        width,
+        height,
     })
 }
 
@@ -368,8 +370,9 @@ fn orb_center_in_pie(app: &AppHandle, id: &str) -> Option<(f64, f64)> {
     let orb_pos = orb.outer_position().ok()?;
     let orb_size = orb.outer_size().ok()?;
     let pie_pos = pie.outer_position().ok()?;
-    let cx = (orb_pos.x + orb_size.width as i32 / 2 - pie_pos.x) as f64;
-    let cy = (orb_pos.y + orb_size.height as i32 / 2 - pie_pos.y) as f64;
+    let scale = pie.scale_factor().ok()?;
+    let cx = (orb_pos.x + orb_size.width as i32 / 2 - pie_pos.x) as f64 / scale;
+    let cy = (orb_pos.y + orb_size.height as i32 / 2 - pie_pos.y) as f64 / scale;
     Some((cx, cy))
 }
 
@@ -388,6 +391,7 @@ fn ensure_pie_window(app: &AppHandle) -> Result<WebviewWindow, String> {
         .visible(false)
         .focused(false)
         .accept_first_mouse(true)
+        .drag_and_drop(true)
         .inner_size(PIE_WIDTH as f64, PIE_HEIGHT as f64)
         .build()
         .map_err(|e| e.to_string())?;
@@ -425,22 +429,27 @@ fn open_pie_inner(app: &AppHandle, id: &str, edit: bool) -> Result<(), String> {
             mon_pos.x + mon_size.width as i32 / 2,
             mon_pos.y + mon_size.height as i32 / 2,
         ));
-    let max_x = mon_pos.x + mon_size.width as i32 - PIE_WIDTH as i32;
-    let max_y = mon_pos.y + mon_size.height as i32 - PIE_HEIGHT as i32;
-    let pie_x = (orb_x - PIE_WIDTH as i32 / 2).clamp(mon_pos.x, max_x.max(mon_pos.x));
-    let pie_y = (orb_y - 190).clamp(mon_pos.y, max_y.max(mon_pos.y));
+    let scale = pie.scale_factor().unwrap_or(1.0);
+    let pie_width_px = (PIE_WIDTH as f64 * scale).round() as i32;
+    let pie_height_px = (PIE_HEIGHT as f64 * scale).round() as i32;
+    let max_x = mon_pos.x + mon_size.width as i32 - pie_width_px;
+    let max_y = mon_pos.y + mon_size.height as i32 - pie_height_px;
+    let pie_x = (orb_x - pie_width_px / 2).clamp(mon_pos.x, max_x.max(mon_pos.x));
+    let pie_y = (orb_y - (190.0 * scale).round() as i32).clamp(mon_pos.y, max_y.max(mon_pos.y));
 
     let _ = pie.set_always_on_top(true);
     let _ = pie.set_position(tauri::Position::Physical(PhysicalPosition {
         x: pie_x,
         y: pie_y,
     }));
-    let _ = pie.set_size(tauri::Size::Physical(PhysicalSize {
-        width: PIE_WIDTH,
-        height: PIE_HEIGHT,
+    let _ = pie.set_size(tauri::Size::Logical(tauri::LogicalSize {
+        width: PIE_WIDTH as f64,
+        height: PIE_HEIGHT as f64,
     }));
-    let _ = desktop::apply_tool_window(&pie);
     let _ = pie.show();
+    if edit {
+        let _ = pie.set_focus();
+    }
 
     {
         let state = app.state::<AppState>();
@@ -613,6 +622,7 @@ pub fn run() {
     }
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             let _ = open_settings(app.clone());
@@ -661,13 +671,14 @@ pub fn run() {
         .on_window_event(|window, event| {
             if window.label() == "pie" {
                 if let WindowEvent::DragDrop(DragDropEvent::Drop { paths, position }) = event {
+                    let scale = window.scale_factor().unwrap_or(1.0);
                     let payload = DropPayload {
                         paths: paths
                             .iter()
                             .map(|p| p.to_string_lossy().to_string())
                             .collect(),
-                        x: position.x,
-                        y: position.y,
+                        x: position.x / scale,
+                        y: position.y / scale,
                     };
                     let _ = window.emit("files-dropped", payload);
                 }

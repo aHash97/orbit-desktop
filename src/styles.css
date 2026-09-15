@@ -242,6 +242,22 @@ body,
   pointer-events: none;
 }
 
+.pie-notice {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 340px;
+  padding: 7px 11px;
+  border-radius: 9px;
+  background: rgba(8, 12, 18, 0.9);
+  box-shadow: 0 0 0 1px var(--line);
+  color: var(--ink);
+  font-size: 12px;
+  text-align: center;
+  pointer-events: none;
+}
+
 .wedge-ui {
   position: absolute;
   transform: translate(-50%, -50%);

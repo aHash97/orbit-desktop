@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { open } from "@tauri-apps/plugin-dialog";
 import { api } from "../api";
 import {
   DropPayload,
@@ -35,6 +36,7 @@ export function PieApp() {
     null,
   );
   const [dragId, setDragId] = useState<string | null>(null);
+  const [notice, setNotice] = useState("");
   const dwellRef = useRef<number | null>(null);
   const leaveRef = useRef<number | null>(null);
   const sessionRef = useRef<PieSession | null>(null);
@@ -52,6 +54,7 @@ export function PieApp() {
       setHover(null);
       setCtx(null);
       setRename(null);
+      setNotice("");
     };
 
     void api.getPieSession().then((s) => {
@@ -109,30 +112,34 @@ export function PieApp() {
     }
   }
 
-  async function handleDrop(drop: DropPayload) {
+  async function addPaths(paths: string[], targetIndex: number | null = null) {
     const current = sessionRef.current;
     if (!current?.edit) return;
     const hubNow = current.hub;
     const liveItems = itemsRef.current;
-    const liveWedges = wedgesRef.current;
-    const idx = hitWedge(drop.x, drop.y, current.centerX, current.centerY, liveWedges);
     const metas: MenuItem[] = [];
-    for (const p of drop.paths) {
+    for (const p of paths) {
       try {
         metas.push(await api.shortcutMeta(p));
       } catch {
         /* skip */
       }
     }
-    if (metas.length === 0) return;
+    if (metas.length === 0) {
+      setNotice("No supported shortcuts were selected.");
+      return;
+    }
 
     const next = [...liveItems];
     const room = MAX_PER_RING - next.length;
     const add = metas.slice(0, Math.max(0, room));
-    if (add.length === 0) return;
+    if (add.length === 0) {
+      setNotice("This ring is full. Add a folder first.");
+      return;
+    }
 
-    if (idx != null && idx < next.length) {
-      next.splice(idx, 0, ...add);
+    if (targetIndex != null && targetIndex < next.length) {
+      next.splice(targetIndex, 0, ...add);
       if (next.length > MAX_PER_RING) next.length = MAX_PER_RING;
     } else {
       next.push(...add);
@@ -141,6 +148,43 @@ export function PieApp() {
     await api.setHubItems(hubNow.id, tree);
     setSession((s) => (s ? { ...s, hub: { ...s.hub, items: tree } } : s));
     setCtx(null);
+    setNotice(`${add.length} shortcut${add.length === 1 ? "" : "s"} added.`);
+  }
+
+  async function handleDrop(drop: DropPayload) {
+    const current = sessionRef.current;
+    if (!current?.edit) return;
+    const idx = hitWedge(
+      drop.x,
+      drop.y,
+      current.centerX,
+      current.centerY,
+      wedgesRef.current,
+    );
+    await addPaths(drop.paths, idx);
+  }
+
+  async function pickShortcuts() {
+    clearLeave();
+    setCtx(null);
+    setNotice("");
+    try {
+      const selected = await open({
+        multiple: true,
+        directory: false,
+        title: "Add shortcuts to Orbit",
+        filters: [
+          {
+            name: "Shortcuts and applications",
+            extensions: ["lnk", "exe", "url"],
+          },
+        ],
+      });
+      if (!selected) return;
+      await addPaths(Array.isArray(selected) ? selected : [selected]);
+    } catch (error) {
+      setNotice(`Could not open file picker: ${String(error)}`);
+    }
   }
 
   async function persist(nextItems: MenuItem[]) {
@@ -162,7 +206,7 @@ export function PieApp() {
   async function activate(index: number) {
     const item = items[index];
     if (!item) {
-      if (edit) await addFolder();
+      if (edit) await pickShortcuts();
       return;
     }
     if (isFolder(item)) {
@@ -369,9 +413,11 @@ export function PieApp() {
 
       {emptyEdit && (
         <div className="empty-hint" style={{ left: cx, top: cy + 88 }}>
-          Drop shortcuts here. Right-click to make a folder.
+          Click the ring to choose shortcuts, or drop them here. Right-click to make a folder.
         </div>
       )}
+
+      {notice && <div className="pie-notice">{notice}</div>}
 
       {!emptyEdit &&
         wedges.map((w, i) => {
@@ -393,7 +439,7 @@ export function PieApp() {
               ) : isPlus ? (
                 <>
                   <span className="plus-mark">+</span>
-                  <span className="wedge-name">Add</span>
+                  <span className="wedge-name">Add files</span>
                 </>
               ) : null}
             </div>
@@ -433,6 +479,7 @@ export function PieApp() {
           )}
           {ctx.index === "empty" && (
             <>
+              <li onClick={() => void pickShortcuts()}>Add shortcuts…</li>
               <li onClick={() => void addFolder()}>New folder</li>
               <li onClick={() => void api.closePie()}>Done</li>
             </>
