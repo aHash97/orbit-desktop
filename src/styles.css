@@ -118,9 +118,7 @@ body,
     radial-gradient(circle at 50% 55%, color-mix(in srgb, var(--accent) 35%, #0c1218), #0b0f14);
   box-shadow:
     0 0 0 1px var(--line),
-    0 0 0 6px color-mix(in srgb, var(--accent) 22%, transparent),
-    0 10px 24px rgba(0, 0, 0, 0.35);
-  animation: breathe 3.6s ease-in-out infinite;
+    0 0 0 6px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 .orb.files-over .orb-disc {
@@ -129,22 +127,6 @@ body,
     0 0 0 2px white,
     0 0 0 9px color-mix(in srgb, var(--accent) 62%, transparent),
     0 12px 30px rgba(0, 0, 0, 0.45);
-}
-
-@keyframes breathe {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 1px var(--line),
-      0 0 0 6px color-mix(in srgb, var(--accent) 18%, transparent),
-      0 10px 24px rgba(0, 0, 0, 0.35);
-  }
-  50% {
-    box-shadow:
-      0 0 0 1px color-mix(in srgb, var(--accent) 55%, white),
-      0 0 0 8px color-mix(in srgb, var(--accent) 32%, transparent),
-      0 12px 28px rgba(0, 0, 0, 0.4);
-  }
 }
 
 /* Pie ---------------------------------------------------- */
