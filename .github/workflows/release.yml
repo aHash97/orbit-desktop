@@ -73,4 +73,4 @@ jobs:
             $checksumFile `
             --verify-tag `
             --title "Orbit $env:GITHUB_REF_NAME" `
-            --generate-notes
+            --notes-from-tag

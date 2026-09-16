@@ -2,11 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { Window } from "@tauri-apps/api/window";
-import { open } from "@tauri-apps/plugin-dialog";
+import { confirm as confirmDialog, open } from "@tauri-apps/plugin-dialog";
 import { api } from "../api";
 import {
   type AppConfig,
-  FolderItem,
   Hub,
   MenuItem,
   PieSession,
@@ -56,6 +55,7 @@ export function PieApp() {
   const pathRef = useRef<string[]>([]);
   const centerDragRef = useRef<CenterDrag | null>(null);
   const suppressClickRef = useRef(false);
+  const dialogOpenRef = useRef(false);
 
   useEffect(() => {
     let unlistenSession: (() => void) | undefined;
@@ -141,7 +141,7 @@ export function PieApp() {
 
   async function addPaths(paths: string[], targetIndex: number | null = null) {
     const current = sessionRef.current;
-    if (!current?.edit) return;
+    if (!current) return;
     const hubNow = current.hub;
     const liveItems = itemsRef.current;
     const metas: MenuItem[] = [];
@@ -161,7 +161,7 @@ export function PieApp() {
     const room = MAX_PER_RING - next.length;
     const add = metas.slice(0, Math.max(0, room));
     if (add.length === 0) {
-      setNotice("This ring is full. Add a folder first.");
+      setNotice("This ring is full. Remove an icon before adding another.");
       return;
     }
 
@@ -182,6 +182,7 @@ export function PieApp() {
     clearLeave();
     setCtx(null);
     setNotice("");
+    dialogOpenRef.current = true;
     try {
       const selected = await open({
         multiple: true,
@@ -198,6 +199,8 @@ export function PieApp() {
       await addPaths(Array.isArray(selected) ? selected : [selected]);
     } catch (error) {
       setNotice(`Could not open file picker: ${String(error)}`);
+    } finally {
+      dialogOpenRef.current = false;
     }
   }
 
@@ -320,7 +323,9 @@ export function PieApp() {
 
   function onContext(ev: React.MouseEvent) {
     ev.preventDefault();
-    if (!session?.edit) return;
+    if (!session) return;
+    clearDwell();
+    clearLeave();
     const x = ev.clientX;
     const y = ev.clientY;
     if (hitCenter(x, y, session.centerX, session.centerY)) {
@@ -333,20 +338,6 @@ export function PieApp() {
       return;
     }
     setCtx({ x, y, index: idx });
-  }
-
-  async function addFolder() {
-    if (!hub) return;
-    if (items.length >= MAX_PER_RING) return;
-    const folder: FolderItem = {
-      type: "folder",
-      id: crypto.randomUUID(),
-      name: "Folder",
-      items: [],
-    };
-    await persist([...items, folder]);
-    setCtx(null);
-    setRename({ target: "item", id: folder.id, value: "Folder" });
   }
 
   async function removeAt(index: number) {
@@ -370,10 +361,33 @@ export function PieApp() {
     setRename(null);
   }
 
+  async function deleteCurrentHub() {
+    if (!hub) return;
+    const confirmed = await confirmDialog(`Delete “${hub.name}” and all of its shortcuts?`, {
+      title: "Delete hub",
+      kind: "warning",
+      okLabel: "Delete",
+      cancelLabel: "Cancel",
+    });
+    if (!confirmed) return;
+    await api.deleteHub(hub.id);
+    await api.closePie();
+  }
+
   function applyUpdatedConfig(config: AppConfig) {
     const updated = config.hubs.find((candidate) => candidate.id === hub?.id);
     if (updated) {
-      setSession((current) => current ? { ...current, hub: updated } : current);
+      setSession((current) => current ? { ...current, hub: updated, accent: updated.accent } : current);
+    }
+  }
+
+  async function chooseAccent(accent: string) {
+    if (!hub) return;
+    try {
+      applyUpdatedConfig(await api.setHubAccent(hub.id, accent));
+      setNotice("Hub color updated.");
+    } catch (error) {
+      setNotice(`Could not update color: ${String(error)}`);
     }
   }
 
@@ -390,6 +404,7 @@ export function PieApp() {
 
   async function chooseCustomIcon() {
     if (!hub) return;
+    dialogOpenRef.current = true;
     try {
       const selected = await open({
         multiple: false,
@@ -403,6 +418,8 @@ export function PieApp() {
       setNotice("Custom hub icon saved.");
     } catch (error) {
       setNotice(`Could not use that icon: ${String(error)}`);
+    } finally {
+      dialogOpenRef.current = false;
     }
   }
 
@@ -411,10 +428,10 @@ export function PieApp() {
     const from = items.findIndex((it) => it.id === dragId);
     setDragId(null);
     if (from < 0 || from === toIndex) return;
+    suppressClickRef.current = true;
     const next = [...items];
     const [moved] = next.splice(from, 1);
-    const insert = toIndex > from ? toIndex - 1 : toIndex;
-    next.splice(Math.max(0, insert), 0, moved);
+    next.splice(Math.min(Math.max(0, toIndex), next.length), 0, moved);
     await persist(next);
   }
 
@@ -430,6 +447,8 @@ export function PieApp() {
   return (
     <div
       className={`pie-root ${edit ? "edit" : ""} ${centerDragging ? "center-dragging" : ""} ${
+        dragId ? "item-dragging" : ""
+      } ${
         items.length <= 4 ? "sparse" : items.length <= 8 ? "medium" : "dense"
       }`}
       style={{ ["--accent" as string]: session.accent }}
@@ -451,15 +470,32 @@ export function PieApp() {
         if (centerDragRef.current?.pointerId === ev.pointerId && !centerDragRef.current.started) {
           centerDragRef.current = null;
         }
+        if (dragId) {
+          const dropIndex = hitWedge(
+            ev.clientX,
+            ev.clientY,
+            session.centerX,
+            session.centerY,
+            wedges,
+          );
+          if (dropIndex != null && dropIndex <= items.length) {
+            void onInternalDrop(dropIndex);
+          } else {
+            setDragId(null);
+          }
+        }
       }}
       onPointerCancel={(ev) => {
         if (centerDragRef.current?.pointerId === ev.pointerId) {
           centerDragRef.current = null;
           setCenterDragging(false);
         }
+        setDragId(null);
       }}
       onPointerLeave={() => {
-        if (!edit) leaveRef.current = window.setTimeout(() => void api.closePie(), 220);
+        if (!edit && !dialogOpenRef.current) {
+          leaveRef.current = window.setTimeout(() => void api.closePie(), 220);
+        }
       }}
       onClick={onClick}
       onContextMenu={onContext}
@@ -501,12 +537,9 @@ export function PieApp() {
                 }`}
                 d={wedgePath(cx, cy, INNER_R, OUTER_R, w.a0, w.a1)}
                 onPointerDown={(ev) => {
-                  if (edit && item && ev.button === 0) {
+                  if (item && ev.button === 0) {
                     setDragId(item.id);
                   }
-                }}
-                onPointerUp={() => {
-                  if (edit && dragId) void onInternalDrop(i);
                 }}
               />
             );
@@ -553,21 +586,23 @@ export function PieApp() {
           >
             <span>+</span> Add shortcuts
           </button>
-          <button
-            type="button"
-            className="empty-folder"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              void addFolder();
-            }}
-          >
-            New folder
-          </button>
         </div>
       )}
 
       {notice && <div className="pie-notice">{notice}</div>}
+      {edit && !path.length && (
+        <div className="edit-hub-controls">
+          <label title="Hub accent color">
+            <span>Color</span>
+            <input
+              type="color"
+              value={hub.accent}
+              onChange={(event) => void chooseAccent(event.target.value)}
+            />
+          </label>
+          <button type="button" onClick={() => setIconPicker(true)}>Change hub icon…</button>
+        </div>
+      )}
       {filesOver && (
         <div className="drop-overlay" style={{ left: cx, top: cy }}>
           Drop to add
@@ -616,13 +651,10 @@ export function PieApp() {
           {ctx.index === "center" && (
             <>
               <li onClick={() => setRename({ target: "hub", value: hub.name })}>Rename hub</li>
-              <li onClick={() => { setCtx(null); setIconPicker(true); }}>Change icon…</li>
-              <li
-                onClick={() => {
-                  void api.deleteHub(hub.id);
-                  void api.closePie();
-                }}
-              >
+              <li onClick={() => { setCtx(null); setIconPicker(true); }}>Change hub icon…</li>
+              <li onClick={() => void pickShortcuts()}>Add icon…</li>
+              {!edit && <li onClick={() => void api.openPie(hub.id, true)}>Edit orbit</li>}
+              <li className="danger" onClick={() => void deleteCurrentHub()}>
                 Delete hub
               </li>
               <li onClick={() => void api.closePie()}>Done</li>
@@ -630,8 +662,8 @@ export function PieApp() {
           )}
           {ctx.index === "empty" && (
             <>
-              <li onClick={() => void pickShortcuts()}>Add shortcuts…</li>
-              <li onClick={() => void addFolder()}>New folder</li>
+              <li onClick={() => void pickShortcuts()}>Add icon…</li>
+              {!edit && <li onClick={() => void api.openPie(hub.id, true)}>Edit orbit</li>}
               <li onClick={() => void api.closePie()}>Done</li>
             </>
           )}
@@ -646,16 +678,21 @@ export function PieApp() {
                   })
                 }
               >
-                Rename
+                Rename icon
               </li>
-              <li onClick={() => void removeAt(ctx.index as number)}>Delete</li>
+              <li className="danger" onClick={() => void removeAt(ctx.index as number)}>Delete icon</li>
               {isFolder(items[ctx.index]) && (
                 <li onClick={() => drill(ctx.index as number)}>Open folder</li>
               )}
+              <li onClick={() => void pickShortcuts()}>Add icon…</li>
+              {!edit && <li onClick={() => void api.openPie(hub.id, true)}>Edit orbit</li>}
             </>
           )}
           {typeof ctx.index === "number" && !items[ctx.index] && (
-            <li onClick={() => void addFolder()}>New folder</li>
+            <>
+              <li onClick={() => void pickShortcuts()}>Add icon…</li>
+              {!edit && <li onClick={() => void api.openPie(hub.id, true)}>Edit orbit</li>}
+            </>
           )}
         </ul>
       )}

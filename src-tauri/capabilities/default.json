@@ -21,6 +21,7 @@
     "autostart:allow-disable",
     "autostart:allow-is-enabled",
     "dialog:default",
+    "dialog:allow-confirm",
     "updater:default"
   ]
 }

@@ -22,6 +22,7 @@ export type Hub = {
   id: string;
   name: string;
   icon?: string | null;
+  accent: string;
   x: number;
   y: number;
   monitor: number;

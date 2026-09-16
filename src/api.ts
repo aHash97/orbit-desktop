@@ -12,6 +12,8 @@ export const api = {
     invoke<AppConfig>("rename_hub", { id, name }),
   setHubIcon: (id: string, icon: string | null) =>
     invoke<AppConfig>("set_hub_icon", { id, icon }),
+  setHubAccent: (id: string, accent: string) =>
+    invoke<AppConfig>("set_hub_accent", { id, accent }),
   importHubIcon: (id: string, path: string) =>
     invoke<AppConfig>("import_hub_icon", { id, path }),
   setHubItems: (id: string, items: MenuItem[]) =>

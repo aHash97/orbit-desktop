@@ -14,7 +14,6 @@ export function OrbApp() {
   const orbWindow = getCurrentWindow();
   const id = hubIdFromLabel(orbWindow.label);
   const [hub, setHub] = useState<Hub | null>(null);
-  const [accent, setAccent] = useState("#7EB8D4");
   const [filesOver, setFilesOver] = useState(false);
   const hubRef = useRef<Hub | null>(null);
   const hoverTimer = useRef<number | null>(null);
@@ -24,7 +23,6 @@ export function OrbApp() {
   useEffect(() => {
     if (!id) return;
     const apply = (cfg: AppConfig) => {
-      setAccent(cfg.accent);
       const nextHub = cfg.hubs.find((h) => h.id === id) ?? null;
       hubRef.current = nextHub;
       setHub(nextHub);
@@ -128,7 +126,7 @@ export function OrbApp() {
   return (
     <div
       className={`orb ${filesOver ? "files-over" : ""}`}
-      style={{ ["--accent" as string]: accent }}
+      style={{ ["--accent" as string]: hub.accent }}
       onPointerEnter={() => {
         if (dragging.current) return;
         cancelHover();

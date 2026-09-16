@@ -69,7 +69,7 @@ fn save_settings(
 }
 
 #[tauri::command]
-fn create_hub(app: AppHandle, state: tauri::State<AppState>) -> Result<Hub, String> {
+async fn create_hub(app: AppHandle, state: tauri::State<'_, AppState>) -> Result<Hub, String> {
     let mut cfg = state.config.lock().unwrap();
     let n = cfg.hubs.len() + 1;
     let offset = (n as f64 * 0.07) % 0.45;
@@ -77,6 +77,7 @@ fn create_hub(app: AppHandle, state: tauri::State<AppState>) -> Result<Hub, Stri
         id: uuid::Uuid::new_v4().to_string(),
         name: format!("Hub {n}"),
         icon: None,
+        accent: cfg.accent.clone(),
         x: 0.82,
         y: 0.18 + offset,
         monitor: 0,
@@ -85,6 +86,10 @@ fn create_hub(app: AppHandle, state: tauri::State<AppState>) -> Result<Hub, Stri
     cfg.hubs.push(hub.clone());
     config::save(&cfg)?;
     drop(cfg);
+
+    // WebView construction must coordinate with Tauri's main loop. Keeping
+    // this command async prevents the IPC handler from monopolizing that loop
+    // while the new orb is initialized.
     spawn_orb(&app, &hub)?;
     let _ = app.emit("config-updated", get_config_snapshot(&app));
     let _ = open_pie_inner(&app, &hub.id, true);
@@ -143,6 +148,24 @@ fn set_hub_icon(
         let mut cfg = state.config.lock().unwrap();
         let hub = config::find_hub_mut(&mut cfg, &id)?;
         hub.icon = icon.filter(|value| value.starts_with("builtin:"));
+        config::save(&cfg)?;
+    }
+    let cfg = get_config_snapshot(&app);
+    let _ = app.emit("config-updated", cfg.clone());
+    Ok(cfg)
+}
+
+#[tauri::command]
+fn set_hub_accent(
+    app: AppHandle,
+    state: tauri::State<AppState>,
+    id: String,
+    accent: String,
+) -> Result<AppConfig, String> {
+    {
+        let mut cfg = state.config.lock().unwrap();
+        let hub = config::find_hub_mut(&mut cfg, &id)?;
+        hub.accent = accent;
         config::save(&cfg)?;
     }
     let cfg = get_config_snapshot(&app);
@@ -362,10 +385,10 @@ fn pie_session_from(
     let cx = raw_cx.clamp(PIE_SAFE_RADIUS, width - PIE_SAFE_RADIUS);
     let cy = raw_cy.clamp(PIE_SAFE_RADIUS, height - 245.0);
     Ok(PieSession {
+        accent: hub.accent.clone(),
         hub,
         edit,
         dwell_ms: cfg.dwell_ms,
-        accent: cfg.accent,
         screenshot,
         center_x: cx,
         center_y: cy,
@@ -632,6 +655,7 @@ pub fn run() {
             id: uuid::Uuid::new_v4().to_string(),
             name: "Hub 1".into(),
             icon: None,
+            accent: cfg.accent.clone(),
             x: 0.82,
             y: 0.25,
             monitor: 0,
@@ -665,6 +689,7 @@ pub fn run() {
             delete_hub,
             rename_hub,
             set_hub_icon,
+            set_hub_accent,
             import_hub_icon,
             set_hub_items,
             move_hub,

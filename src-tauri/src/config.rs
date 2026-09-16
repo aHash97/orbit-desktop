@@ -30,6 +30,8 @@ pub struct Hub {
     pub name: String,
     #[serde(default)]
     pub icon: Option<String>,
+    #[serde(default)]
+    pub accent: String,
     pub x: f64,
     pub y: f64,
     pub monitor: u32,
@@ -94,6 +96,11 @@ pub fn load() -> Result<AppConfig, String> {
     }
     if cfg.accent.is_empty() {
         cfg.accent = DEFAULT_ACCENT.to_string();
+    }
+    for hub in &mut cfg.hubs {
+        if hub.accent.is_empty() {
+            hub.accent = cfg.accent.clone();
+        }
     }
     validate_tree(&cfg)?;
     Ok(cfg)
