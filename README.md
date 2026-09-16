@@ -10,12 +10,15 @@ Orbit is **not** a Kando clone. It does not hook Explorer, it does not move your
 - Launch Orbit again, double-click its tray icon, or choose **Open Orbit** in the tray to reopen the control center.
 - **New hub** drops another orb on the desktop and opens its editor.
 - **Hover** an orb to open the pie. **Right-click** an orb to edit it.
+- **Hold and drag** an orb to move it anywhere on the desktop; Orbit remembers the position.
 - **Folders** open on a short dwell (~250ms) or a click.
 - **Shortcuts** launch on click.
 - A ring holds **at most 12 items**. More than that: make a subfolder.
 - Edit mode: click **Add files** to choose `.lnk` / `.exe` / `.url` files, or drop them onto the ring. Drag items to reorder; right-click to rename, delete, or add a folder.
 
 Orbit never scans or relocates the shortcuts already on your desktop. You pick what goes in a hub.
+
+Orbit checks the signed GitHub release feed automatically by default. You can disable automatic updates or run a manual check from **Orbit Settings → Updates**.
 
 ## Requirements
 

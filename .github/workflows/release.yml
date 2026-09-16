@@ -30,6 +30,9 @@ jobs:
         run: npm ci
 
       - name: Build Windows installer
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri build
 
       - name: Publish GitHub release
@@ -42,12 +45,41 @@ jobs:
             throw "NSIS installer was not produced."
           }
 
+          $updaterBundle = Get-ChildItem "src-tauri/target/release/bundle/nsis" -Filter "*.nsis.zip" | Select-Object -First 1
+          if (-not $updaterBundle) {
+            throw "NSIS updater bundle was not produced."
+          }
+
           $checksumFile = Join-Path $env:RUNNER_TEMP "SHA256SUMS.txt"
-          $hash = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$hash  $($installer.Name)" | Set-Content $checksumFile
+          $installerHash = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          $updaterHash = (Get-FileHash $updaterBundle.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          @(
+            "$installerHash  $($installer.Name)"
+            "$updaterHash  $($updaterBundle.Name)"
+          ) | Set-Content $checksumFile
+
+          $signatureFile = Get-Item "$($updaterBundle.FullName).sig"
+          $version = $env:GITHUB_REF_NAME.TrimStart("v")
+          $releaseUrl = "https://github.com/${{ github.repository }}/releases/download/$env:GITHUB_REF_NAME/$($updaterBundle.Name)"
+          $latestFile = Join-Path $env:RUNNER_TEMP "latest.json"
+          $latest = [ordered]@{
+            version = $version
+            notes = "See the GitHub release notes for Orbit $env:GITHUB_REF_NAME."
+            pub_date = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+            platforms = [ordered]@{
+              "windows-x86_64" = [ordered]@{
+                signature = (Get-Content $signatureFile.FullName -Raw).Trim()
+                url = $releaseUrl
+              }
+            }
+          }
+          $latest | ConvertTo-Json -Depth 5 | Set-Content $latestFile
 
           gh release create $env:GITHUB_REF_NAME `
             $installer.FullName `
+            $updaterBundle.FullName `
+            $signatureFile.FullName `
+            $latestFile `
             $checksumFile `
             --verify-tag `
             --title "Orbit $env:GITHUB_REF_NAME" `

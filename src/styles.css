@@ -260,7 +260,11 @@ body,
   font: inherit;
   font-size: 11px;
   font-weight: 700;
-  cursor: pointer;
+  cursor: grab;
+}
+
+.orb:active {
+  cursor: grabbing;
 }
 
 .empty-actions button {
@@ -547,6 +551,52 @@ body,
   color: var(--muted);
   font-size: 12.5px;
   line-height: 1.5;
+}
+
+.update-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.update-card > div {
+  display: grid;
+  gap: 3px;
+}
+
+.update-card .update-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.update-card strong {
+  font-size: 13px;
+}
+
+.update-card span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.update-card button,
+.hub-row button {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 7px 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.update-card button:disabled {
+  cursor: wait;
+  opacity: 0.6;
 }
 
 .settings code {

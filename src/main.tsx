@@ -4,6 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { PieApp } from "./pie/PieApp";
 import { OrbApp } from "./orb/OrbApp";
 import { SettingsApp } from "./settings/SettingsApp";
+import { AutoUpdate } from "./updates/AutoUpdate";
 import "./styles.css";
 
 document.addEventListener("contextmenu", (e) => {
@@ -16,7 +17,7 @@ function Root() {
   if (label === "pie") return <PieApp />;
   if (label === "settings") return <SettingsApp />;
   if (label.startsWith("orb-")) return <OrbApp />;
-  return <div className="hidden-main" />;
+  return <AutoUpdate />;
 }
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

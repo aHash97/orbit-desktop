@@ -1,16 +1,24 @@
 import { useEffect, useState } from "react";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
+import { getVersion } from "@tauri-apps/api/app";
+import type { Update } from "@tauri-apps/plugin-updater";
 import { api } from "../api";
 import type { AppConfig } from "../types";
+import { checkForUpdate, installUpdate, type UpdateStatus } from "../updates";
 
 export function SettingsApp() {
   const [cfg, setCfg] = useState<AppConfig | null>(null);
   const [auto, setAuto] = useState(false);
   const [status, setStatus] = useState("");
+  const [version, setVersion] = useState("");
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
+  const [updateError, setUpdateError] = useState("");
+  const [pendingUpdate, setPendingUpdate] = useState<Update | null>(null);
 
   useEffect(() => {
     void api.getConfig().then(setCfg);
     void isEnabled().then(setAuto);
+    void getVersion().then(setVersion);
   }, []);
 
   if (!cfg) {
@@ -19,7 +27,7 @@ export function SettingsApp() {
 
   async function save() {
     if (!cfg) return;
-    const next = await api.saveSettings(cfg.dwellMs, cfg.accent);
+    const next = await api.saveSettings(cfg.dwellMs, cfg.accent, cfg.autoUpdate);
     setCfg(next);
     setStatus("Saved");
     window.setTimeout(() => setStatus(""), 1200);
@@ -42,6 +50,45 @@ export function SettingsApp() {
       await api.openPie(id, true);
     } catch (error) {
       setStatus(`Could not open hub: ${String(error)}`);
+    }
+  }
+
+  async function checkForUpdates() {
+    setUpdateError("");
+    setPendingUpdate(null);
+    try {
+      setPendingUpdate(await checkForUpdate(setUpdateStatus));
+    } catch (error) {
+      setUpdateError(`Update check failed: ${String(error)}`);
+    }
+  }
+
+  async function installPendingUpdate() {
+    if (!pendingUpdate) return;
+    setUpdateError("");
+    try {
+      await installUpdate(pendingUpdate, setUpdateStatus);
+    } catch (error) {
+      setUpdateError(`Update installation failed: ${String(error)}`);
+    }
+  }
+
+  function updateLabel() {
+    if (updateError) return updateError;
+    if (!updateStatus) return version ? `Version ${version}` : "";
+    switch (updateStatus.phase) {
+      case "checking":
+        return "Checking for updates…";
+      case "current":
+        return `Orbit ${version} is up to date.`;
+      case "available":
+        return `Orbit ${updateStatus.version} is available.`;
+      case "downloading":
+        return updateStatus.percent == null
+          ? `Downloading Orbit ${updateStatus.version}…`
+          : `Downloading Orbit ${updateStatus.version} — ${updateStatus.percent}%`;
+      case "installing":
+        return `Installing Orbit ${updateStatus.version}…`;
     }
   }
 
@@ -110,6 +157,36 @@ export function SettingsApp() {
             else await disable();
             setAuto(await isEnabled());
           }}
+        />
+      </label>
+
+      <section className="update-card">
+        <div>
+          <strong>Updates</strong>
+          <span>{updateLabel()}</span>
+        </div>
+        <div className="update-actions">
+          {pendingUpdate && (
+            <button type="button" onClick={() => void installPendingUpdate()}>
+              Install update
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={updateStatus?.phase === "checking" || updateStatus?.phase === "downloading"}
+            onClick={() => void checkForUpdates()}
+          >
+            Check now
+          </button>
+        </div>
+      </section>
+
+      <label className="row">
+        <span>Install updates automatically</span>
+        <input
+          type="checkbox"
+          checked={cfg.autoUpdate}
+          onChange={(e) => setCfg({ ...cfg, autoUpdate: e.target.checked })}
         />
       </label>
 

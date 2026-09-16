@@ -30,6 +30,7 @@ export type Hub = {
 export type AppConfig = {
   dwellMs: number;
   accent: string;
+  autoUpdate: boolean;
   hubs: Hub[];
 };
 

@@ -55,10 +55,12 @@ fn save_settings(
     state: tauri::State<AppState>,
     dwell_ms: u64,
     accent: String,
+    auto_update: bool,
 ) -> Result<AppConfig, String> {
     let mut cfg = state.config.lock().unwrap();
     cfg.dwell_ms = dwell_ms.clamp(80, 800);
     cfg.accent = accent;
+    cfg.auto_update = auto_update;
     config::save(&cfg)?;
     let cloned = cfg.clone();
     drop(cfg);
@@ -253,32 +255,6 @@ fn max_per_ring() -> usize {
 #[tauri::command]
 fn get_pie_session(state: tauri::State<AppState>) -> Option<PieSession> {
     state.last_session.lock().unwrap().clone()
-}
-
-#[tauri::command]
-fn drag_orb(app: AppHandle, id: String) -> Result<(), String> {
-    #[cfg(windows)]
-    {
-        use windows::Win32::Foundation::POINT;
-        use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
-        let mut pt = POINT::default();
-        unsafe {
-            GetCursorPos(&mut pt).map_err(|e| e.to_string())?;
-        }
-        let win = app
-            .get_webview_window(&orb_label(&id))
-            .ok_or("missing orb")?;
-        let scale = win.scale_factor().unwrap_or(1.0);
-        let orb_px = (ORB_SIZE * scale).round() as i32;
-        let (x, y) =
-            desktop::clamp_to_virtual(pt.x - orb_px / 2, pt.y - orb_px / 2, orb_px, orb_px);
-        desktop::move_orb_physical(&win, x, y)
-    }
-    #[cfg(not(windows))]
-    {
-        let _ = (app, id);
-        Ok(())
-    }
 }
 
 #[tauri::command]
@@ -623,6 +599,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             let _ = open_settings(app.clone());
@@ -654,7 +631,6 @@ pub fn run() {
             shortcut_meta,
             max_per_ring,
             get_pie_session,
-            drag_orb,
             finish_orb_drag
         ])
         .setup(move |app| {

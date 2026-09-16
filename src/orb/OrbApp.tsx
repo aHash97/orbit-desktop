@@ -10,14 +10,15 @@ function hubIdFromLabel(label: string): string | null {
 }
 
 export function OrbApp() {
-  const id = hubIdFromLabel(getCurrentWindow().label);
+  const orbWindow = getCurrentWindow();
+  const id = hubIdFromLabel(orbWindow.label);
   const [hub, setHub] = useState<Hub | null>(null);
   const [accent, setAccent] = useState("#7EB8D4");
   const [filesOver, setFilesOver] = useState(false);
   const hubRef = useRef<Hub | null>(null);
   const hoverTimer = useRef<number | null>(null);
   const dragging = useRef(false);
-  const start = useRef<{ x: number; y: number } | null>(null);
+  const savePositionTimer = useRef<number | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -86,6 +87,32 @@ export function OrbApp() {
     };
   }, [id]);
 
+  useEffect(() => {
+    if (!id) return;
+    let disposed = false;
+    let unlistenMoved: (() => void) | undefined;
+    void orbWindow
+      .onMoved(() => {
+        dragging.current = true;
+        if (savePositionTimer.current) window.clearTimeout(savePositionTimer.current);
+        savePositionTimer.current = window.setTimeout(() => {
+          savePositionTimer.current = null;
+          void api.finishOrbDrag(id).finally(() => {
+            dragging.current = false;
+          });
+        }, 180);
+      })
+      .then((fn) => {
+        if (disposed) fn();
+        else unlistenMoved = fn;
+      });
+    return () => {
+      disposed = true;
+      unlistenMoved?.();
+      if (savePositionTimer.current) window.clearTimeout(savePositionTimer.current);
+    };
+  }, [id]);
+
   if (!id || !hub) return <div className="orb dead" />;
 
   const letter = hub.name.trim().slice(0, 1).toUpperCase() || "O";
@@ -116,28 +143,11 @@ export function OrbApp() {
       }}
       onPointerDown={(e) => {
         if (e.button !== 0) return;
-        dragging.current = false;
-        start.current = { x: e.screenX, y: e.screenY };
-        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-      }}
-      onPointerMove={(e) => {
-        if (!start.current) return;
-        const dx = e.screenX - start.current.x;
-        const dy = e.screenY - start.current.y;
-        if (!dragging.current && Math.hypot(dx, dy) > 4) {
-          dragging.current = true;
-          cancelHover();
-        }
-        if (dragging.current) {
-          void api.dragOrb(id);
-        }
-      }}
-      onPointerUp={async () => {
-        const wasDrag = dragging.current;
-        dragging.current = false;
-        start.current = null;
-        if (!wasDrag) return;
-        await api.finishOrbDrag(id);
+        cancelHover();
+        dragging.current = true;
+        void orbWindow.startDragging().finally(() => {
+          if (!savePositionTimer.current) dragging.current = false;
+        });
       }}
     >
       <div className="orb-disc">

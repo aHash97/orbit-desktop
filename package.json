@@ -1,7 +1,7 @@
 {
   "name": "orbit",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -20,6 +20,7 @@
     "@tauri-apps/plugin-autostart": "^2.5.1",
     "@tauri-apps/plugin-dialog": "^2.7.3",
     "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-updater": "^2.11.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Orbit",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "com.orbit.app",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -28,6 +28,7 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
+    "createUpdaterArtifacts": true,
     "publisher": "aHash97",
     "homepage": "https://github.com/aHash97/orbit-desktop",
     "copyright": "Copyright (c) 2026 aHash97",
@@ -44,5 +45,16 @@
     },
     "shortDescription": "Desktop hub orbs for launching shortcuts",
     "longDescription": "Orbit plants glass hub orbs on your Windows desktop. Hover a hub to open a smoked-glass pie menu, drill into folders, and launch shortcuts with a click."
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk5RUE3REE1RTIzMjNGMDMKUldRRFB6TGlwWDNxbVhFQVNIMDdKcG1ZcnlQNldKM21RWmgvN2Rnb01jVlI4b2N5Q3ROeHNBY3oK",
+      "endpoints": [
+        "https://github.com/aHash97/orbit-desktop/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

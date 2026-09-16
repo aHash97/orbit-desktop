@@ -4,8 +4,8 @@ import type { AppConfig, Hub, MenuItem, PieSession } from "./types";
 export const api = {
   getConfig: () => invoke<AppConfig>("get_config"),
   getIcon: (path: string) => invoke<string>("get_icon", { path }),
-  saveSettings: (dwellMs: number, accent: string) =>
-    invoke<AppConfig>("save_settings", { dwellMs, accent }),
+  saveSettings: (dwellMs: number, accent: string, autoUpdate: boolean) =>
+    invoke<AppConfig>("save_settings", { dwellMs, accent, autoUpdate }),
   createHub: () => invoke<Hub>("create_hub"),
   deleteHub: (id: string) => invoke<AppConfig>("delete_hub", { id }),
   renameHub: (id: string, name: string) =>
@@ -20,6 +20,5 @@ export const api = {
   openSettings: () => invoke<void>("open_settings"),
   shortcutMeta: (path: string) => invoke<MenuItem>("shortcut_meta", { path }),
   getPieSession: () => invoke<PieSession | null>("get_pie_session"),
-  dragOrb: (id: string) => invoke<void>("drag_orb", { id }),
   finishOrbDrag: (id: string) => invoke<void>("finish_orb_drag", { id }),
 };

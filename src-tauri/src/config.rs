@@ -5,6 +5,10 @@ use std::path::{Path, PathBuf};
 pub const MAX_PER_RING: usize = 12;
 pub const DEFAULT_DWELL_MS: u64 = 250;
 pub const DEFAULT_ACCENT: &str = "#7EB8D4";
+
+fn default_auto_update() -> bool {
+    true
+}
 // Leave enough transparent room for the orb's animated glow. A circular native
 // window region clipped both the glow and, on some WebView2 versions, the orb.
 pub const ORB_SIZE: f64 = 92.0;
@@ -14,6 +18,8 @@ pub const ORB_SIZE: f64 = 92.0;
 pub struct AppConfig {
     pub dwell_ms: u64,
     pub accent: String,
+    #[serde(default = "default_auto_update")]
+    pub auto_update: bool,
     pub hubs: Vec<Hub>,
 }
 
@@ -54,6 +60,7 @@ impl Default for AppConfig {
         Self {
             dwell_ms: DEFAULT_DWELL_MS,
             accent: DEFAULT_ACCENT.to_string(),
+            auto_update: true,
             hubs: Vec::new(),
         }
     }
