@@ -17,6 +17,10 @@ use tauri_plugin_autostart::MacosLauncher;
 const PIE_WIDTH: u32 = 400;
 const PIE_HEIGHT: u32 = 430;
 const PIE_SAFE_RADIUS: f64 = 180.0;
+const SETTINGS_WIDTH: f64 = 560.0;
+const SETTINGS_HEIGHT: f64 = 780.0;
+const SETTINGS_MIN_WIDTH: f64 = 480.0;
+const SETTINGS_MIN_HEIGHT: f64 = 560.0;
 
 struct AppState {
     config: Mutex<AppConfig>,
@@ -395,19 +399,42 @@ fn close_pie(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 fn open_settings(app: AppHandle) -> Result<(), String> {
     if let Some(win) = app.get_webview_window("settings") {
+        // Force WebView bounds to match the window. High-DPI monitors can leave
+        // the panel frame offset until size is reapplied.
+        sync_settings_webview(&win);
         let _ = win.show();
         let _ = win.set_focus();
         return Ok(());
     }
-    WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App("index.html".into()))
+    let win = WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App("index.html".into()))
         .title("Orbit Settings")
-        .inner_size(460.0, 740.0)
-        .resizable(false)
+        .inner_size(SETTINGS_WIDTH, SETTINGS_HEIGHT)
+        .min_inner_size(SETTINGS_MIN_WIDTH, SETTINGS_MIN_HEIGHT)
+        .resizable(true)
         .skip_taskbar(false)
         .visible(true)
         .build()
         .map_err(|e| e.to_string())?;
+    // Re-assert logical size after creation. On some high-DPI Windows setups the
+    // initial WebView bounds can land wrong, leaving an offset panel frame.
+    normalize_settings_size(&win);
     Ok(())
+}
+
+fn normalize_settings_size(win: &WebviewWindow) {
+    use tauri::{LogicalSize, Size};
+    let _ = win.set_size(Size::Logical(LogicalSize::new(SETTINGS_WIDTH, SETTINGS_HEIGHT)));
+}
+
+fn sync_settings_webview(win: &WebviewWindow) {
+    use tauri::{LogicalSize, Size};
+    let Ok(physical) = win.inner_size() else {
+        normalize_settings_size(win);
+        return;
+    };
+    let scale = win.scale_factor().unwrap_or(1.0);
+    let logical: LogicalSize<f64> = physical.to_logical(scale);
+    let _ = win.set_size(Size::Logical(logical));
 }
 
 #[tauri::command]
@@ -841,9 +868,18 @@ pub fn run() {
                 // keep pie while editing; normal mode stays until leave/esc from UI
             }
             if window.label() == "settings" {
-                if let WindowEvent::CloseRequested { api, .. } = event {
-                    api.prevent_close();
-                    let _ = window.hide();
+                match event {
+                    WindowEvent::CloseRequested { api, .. } => {
+                        api.prevent_close();
+                        let _ = window.hide();
+                    }
+                    WindowEvent::ScaleFactorChanged { .. } => {
+                        // Keep the logical settings size stable when the scale changes.
+                        if let Some(win) = window.app_handle().get_webview_window("settings") {
+                            normalize_settings_size(&win);
+                        }
+                    }
+                    _ => {}
                 }
             }
         })
