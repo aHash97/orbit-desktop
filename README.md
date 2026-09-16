@@ -12,8 +12,7 @@ Orbit is **not** a Kando clone. It does not hook Explorer, it does not move your
 - **Hover** an orb to open the pie. **Right-click anywhere in the orbit** to add,
   rename, or delete an icon, or to enter the full orbit editor.
 - **Hold and drag** an orb to move it anywhere on the desktop; Orbit remembers the position.
-- **Press and drag any icon** around its ring to reorder it, without entering edit mode.
-- **Shortcuts** launch on click.
+- **Click an icon** to launch it. Press and move it at least a few pixels to reorder it without entering edit mode.
 - A ring holds **at most 12 items**.
 - Edit mode: click **Add files** to choose `.lnk` / `.exe` / `.url` files, or drop them onto the ring. The editor also exposes that hub's accent color and hub icon.
 - The control center gives every hub its own color, icon picker, **Edit**, and **Delete** controls. The default accent is used only when creating new hubs.

@@ -34,6 +34,13 @@ type CenterDrag = {
   startY: number;
   started: boolean;
 };
+type ItemDrag = {
+  pointerId: number;
+  id: string;
+  startX: number;
+  startY: number;
+  started: boolean;
+};
 
 export function PieApp() {
   const [session, setSession] = useState<PieSession | null>(null);
@@ -54,6 +61,7 @@ export function PieApp() {
   const itemsRef = useRef<MenuItem[]>([]);
   const pathRef = useRef<string[]>([]);
   const centerDragRef = useRef<CenterDrag | null>(null);
+  const itemDragRef = useRef<ItemDrag | null>(null);
   const suppressClickRef = useRef(false);
   const dialogOpenRef = useRef(false);
 
@@ -69,6 +77,8 @@ export function PieApp() {
       setRename(null);
       setIconPicker(false);
       setNotice("");
+      itemDragRef.current = null;
+      setDragId(null);
     };
 
     void api.getPieSession().then((s) => {
@@ -266,6 +276,18 @@ export function PieApp() {
         return;
       }
     }
+    const itemDrag = itemDragRef.current;
+    if (itemDrag?.pointerId === ev.pointerId) {
+      const distance = Math.hypot(ev.clientX - itemDrag.startX, ev.clientY - itemDrag.startY);
+      if (!itemDrag.started && distance >= 5) {
+        itemDrag.started = true;
+        setDragId(itemDrag.id);
+        clearDwell();
+        clearLeave();
+        setCtx(null);
+      }
+      if (itemDrag.started) ev.preventDefault();
+    }
     clearLeave();
     const x = ev.clientX;
     const y = ev.clientY;
@@ -317,7 +339,6 @@ export function PieApp() {
       if (!edit) await api.closePie();
       return;
     }
-    if (dragId) return;
     await activate(idx);
   }
 
@@ -423,12 +444,11 @@ export function PieApp() {
     }
   }
 
-  async function onInternalDrop(toIndex: number) {
-    if (!dragId) return;
-    const from = items.findIndex((it) => it.id === dragId);
+  async function onInternalDrop(movingId: string, toIndex: number) {
+    const from = items.findIndex((it) => it.id === movingId);
     setDragId(null);
-    if (from < 0 || from === toIndex) return;
     suppressClickRef.current = true;
+    if (from < 0 || from === toIndex) return;
     const next = [...items];
     const [moved] = next.splice(from, 1);
     next.splice(Math.min(Math.max(0, toIndex), next.length), 0, moved);
@@ -470,7 +490,13 @@ export function PieApp() {
         if (centerDragRef.current?.pointerId === ev.pointerId && !centerDragRef.current.started) {
           centerDragRef.current = null;
         }
-        if (dragId) {
+        const itemDrag = itemDragRef.current;
+        if (itemDrag?.pointerId === ev.pointerId) {
+          itemDragRef.current = null;
+          if (!itemDrag.started) {
+            setDragId(null);
+            return;
+          }
           const dropIndex = hitWedge(
             ev.clientX,
             ev.clientY,
@@ -479,7 +505,7 @@ export function PieApp() {
             wedges,
           );
           if (dropIndex != null && dropIndex <= items.length) {
-            void onInternalDrop(dropIndex);
+            void onInternalDrop(itemDrag.id, dropIndex);
           } else {
             setDragId(null);
           }
@@ -490,6 +516,7 @@ export function PieApp() {
           centerDragRef.current = null;
           setCenterDragging(false);
         }
+        itemDragRef.current = null;
         setDragId(null);
       }}
       onPointerLeave={() => {
@@ -538,7 +565,13 @@ export function PieApp() {
                 d={wedgePath(cx, cy, INNER_R, OUTER_R, w.a0, w.a1)}
                 onPointerDown={(ev) => {
                   if (item && ev.button === 0) {
-                    setDragId(item.id);
+                    itemDragRef.current = {
+                      pointerId: ev.pointerId,
+                      id: item.id,
+                      startX: ev.clientX,
+                      startY: ev.clientY,
+                      started: false,
+                    };
                   }
                 }}
               />
