@@ -8,6 +8,13 @@ This file is the single source of truth for every coding agent working in this r
 - Update the most relevant existing documentation, such as `README.md`, code comments, or a focused document under `docs/`. Create a focused document when the existing documentation is not an appropriate home.
 - Before finishing, verify that the implementation and documentation agree and that every agent-specific instruction file still points to this canonical file.
 
+## Local verification before push or release
+
+- Before any push, ask the user to test the completed change locally. Provide the exact commands and user-visible scenarios needed to verify the implementation.
+- Do not push until the user explicitly confirms that the local test passed and authorizes the push. If testing exposes a problem, fix it, provide updated test steps, and wait for confirmation again.
+- Never create or push a release tag, publish a release, or trigger the release workflow unless the exact implementation being released has passed this user-confirmed local test.
+- Confirmation that local testing passed authorizes only the subsequent push. It does not authorize a release; release approval remains a separate requirement.
+
 ## Releases require user approval
 
 - These release requirements apply to changes that affect the app's behavior or distributed product. Documentation-only, agent-guidance, test-only, and developer-workflow changes may be merged without proposing a release unless the user asks for one.
