@@ -16,8 +16,6 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -69,7 +67,12 @@ jobs:
           $latest | ConvertTo-Json -Depth 5 | Set-Content $latestFile
 
           $releaseNotesFile = Join-Path $env:RUNNER_TEMP "RELEASE_NOTES.md"
-          git for-each-ref "refs/tags/$env:GITHUB_REF_NAME" --format="%(contents)" | Set-Content $releaseNotesFile
+          $tagRef = gh api "repos/${{ github.repository }}/git/ref/tags/$env:GITHUB_REF_NAME" | ConvertFrom-Json
+          if ($tagRef.object.type -ne "tag") {
+            throw "The release tag must be annotated."
+          }
+          $tagObject = gh api "repos/${{ github.repository }}/git/tags/$($tagRef.object.sha)" | ConvertFrom-Json
+          $tagObject.message | Set-Content $releaseNotesFile
           if (-not (Get-Content $releaseNotesFile -Raw).Trim()) {
             throw "The annotated release tag does not contain release notes."
           }
