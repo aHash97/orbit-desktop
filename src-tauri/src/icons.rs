@@ -11,8 +11,51 @@ pub fn cache_dir() -> Result<PathBuf, String> {
 }
 
 pub fn get_icon_data_url(path: &str) -> Result<String, String> {
+    if let Some(mime) = image_mime(path) {
+        let bytes = fs::read(path).map_err(|e| e.to_string())?;
+        return Ok(format!("data:{mime};base64,{}", STANDARD.encode(bytes)));
+    }
     let png = load_or_extract(path)?;
     Ok(format!("data:image/png;base64,{}", STANDARD.encode(png)))
+}
+
+fn image_mime(path: &str) -> Option<&'static str> {
+    match std::path::Path::new(path)
+        .extension()
+        .and_then(|ext| ext.to_str())?
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "svg" => Some("image/svg+xml"),
+        "png" => Some("image/png"),
+        "jpg" | "jpeg" => Some("image/jpeg"),
+        "ico" => Some("image/x-icon"),
+        _ => None,
+    }
+}
+
+pub fn import_hub_icon(hub_id: &str, source: &str) -> Result<PathBuf, String> {
+    let source = std::path::Path::new(source);
+    if !source.is_file() {
+        return Err("The selected icon file does not exist.".into());
+    }
+    let ext = source
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(str::to_ascii_lowercase)
+        .ok_or("Choose an SVG, ICO, JPG, or PNG file.")?;
+    if !matches!(ext.as_str(), "svg" | "ico" | "jpg" | "jpeg" | "png") {
+        return Err("Choose an SVG, ICO, JPG, or PNG file.".into());
+    }
+    let size = fs::metadata(source).map_err(|e| e.to_string())?.len();
+    if size > 10 * 1024 * 1024 {
+        return Err("Icon files must be smaller than 10 MB.".into());
+    }
+    let dir = config::app_dir()?.join("hub-icons");
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let target = dir.join(format!("{hub_id}-{}.{}", uuid::Uuid::new_v4(), ext));
+    fs::copy(source, &target).map_err(|e| e.to_string())?;
+    Ok(target)
 }
 
 fn cache_file(path: &str) -> Result<PathBuf, String> {

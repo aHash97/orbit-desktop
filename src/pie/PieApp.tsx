@@ -5,6 +5,7 @@ import { Window } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import { api } from "../api";
 import {
+  type AppConfig,
   FolderItem,
   Hub,
   MenuItem,
@@ -25,6 +26,7 @@ import {
   wedgePath,
 } from "./geometry";
 import { Icon } from "../ui/Icon";
+import { BUILTIN_HUB_ICONS, HubIcon } from "../ui/HubIcon";
 
 type Ctx = { x: number; y: number; index: number | "center" | "empty" };
 type CenterDrag = {
@@ -46,6 +48,7 @@ export function PieApp() {
   const [centerDragging, setCenterDragging] = useState(false);
   const [filesOver, setFilesOver] = useState(false);
   const [notice, setNotice] = useState("");
+  const [iconPicker, setIconPicker] = useState(false);
   const dwellRef = useRef<number | null>(null);
   const leaveRef = useRef<number | null>(null);
   const sessionRef = useRef<PieSession | null>(null);
@@ -64,6 +67,7 @@ export function PieApp() {
       setHover(null);
       setCtx(null);
       setRename(null);
+      setIconPicker(false);
       setNotice("");
     };
 
@@ -366,6 +370,42 @@ export function PieApp() {
     setRename(null);
   }
 
+  function applyUpdatedConfig(config: AppConfig) {
+    const updated = config.hubs.find((candidate) => candidate.id === hub?.id);
+    if (updated) {
+      setSession((current) => current ? { ...current, hub: updated } : current);
+    }
+  }
+
+  async function chooseBuiltinIcon(id: string | null) {
+    if (!hub) return;
+    try {
+      applyUpdatedConfig(await api.setHubIcon(hub.id, id ? `builtin:${id}` : null));
+      setIconPicker(false);
+      setNotice(id ? "Hub icon updated." : "Hub icon removed.");
+    } catch (error) {
+      setNotice(`Could not update icon: ${String(error)}`);
+    }
+  }
+
+  async function chooseCustomIcon() {
+    if (!hub) return;
+    try {
+      const selected = await open({
+        multiple: false,
+        directory: false,
+        title: "Choose a hub icon",
+        filters: [{ name: "Images", extensions: ["svg", "ico", "jpg", "jpeg", "png"] }],
+      });
+      if (!selected || Array.isArray(selected)) return;
+      applyUpdatedConfig(await api.importHubIcon(hub.id, selected));
+      setIconPicker(false);
+      setNotice("Custom hub icon saved.");
+    } catch (error) {
+      setNotice(`Could not use that icon: ${String(error)}`);
+    }
+  }
+
   async function onInternalDrop(toIndex: number) {
     if (!dragId) return;
     const from = items.findIndex((it) => it.id === dragId);
@@ -476,6 +516,13 @@ export function PieApp() {
       </svg>
 
       <div className="center-label" style={{ left: cx, top: cy }}>
+        {!path.length && hub.icon && (
+          <HubIcon
+            icon={hub.icon}
+            fallback={hub.name.trim().slice(0, 1).toUpperCase() || "O"}
+            className="center-hub-icon"
+          />
+        )}
         <div className="center-kicker">{path.length ? "Back" : edit ? "Edit" : "Orbit"}</div>
         <div className="center-title">{title}</div>
         {edit && (
@@ -569,6 +616,7 @@ export function PieApp() {
           {ctx.index === "center" && (
             <>
               <li onClick={() => setRename({ target: "hub", value: hub.name })}>Rename hub</li>
+              <li onClick={() => { setCtx(null); setIconPicker(true); }}>Change icon…</li>
               <li
                 onClick={() => {
                   void api.deleteHub(hub.id);
@@ -630,6 +678,49 @@ export function PieApp() {
             maxLength={32}
           />
         </form>
+      )}
+
+      {iconPicker && (
+        <div
+          className="icon-picker"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="icon-picker-heading">
+            <div>
+              <strong>Hub icon</strong>
+              <span>Choose a built-in icon or use your own.</span>
+            </div>
+            <button type="button" className="icon-picker-close" onClick={() => setIconPicker(false)}>
+              ×
+            </button>
+          </div>
+          <div className="icon-picker-actions">
+            <button type="button" onClick={() => void chooseBuiltinIcon(null)}>No icon</button>
+            <button type="button" onClick={() => void chooseCustomIcon()}>Choose custom…</button>
+          </div>
+          <div className="icon-picker-scroll">
+            {(["Desktop", "Games"] as const).map((category) => (
+              <section key={category}>
+                <h3>{category}</h3>
+                <div className="icon-picker-grid">
+                  {BUILTIN_HUB_ICONS.filter((icon) => icon.category === category).map((icon) => (
+                    <button
+                      type="button"
+                      key={icon.id}
+                      className={hub.icon === `builtin:${icon.id}` ? "selected" : ""}
+                      title={icon.label}
+                      aria-label={icon.label}
+                      onClick={() => void chooseBuiltinIcon(icon.id)}
+                    >
+                      <HubIcon icon={`builtin:${icon.id}`} fallback="" />
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

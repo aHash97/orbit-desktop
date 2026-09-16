@@ -21,6 +21,7 @@ export type MenuItem = ShortcutItem | FolderItem;
 export type Hub = {
   id: string;
   name: string;
+  icon?: string | null;
   x: number;
   y: number;
   monitor: number;

@@ -4,6 +4,7 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "../api";
 import { MAX_PER_RING, type AppConfig, type Hub, type MenuItem } from "../types";
+import { HubIcon } from "../ui/HubIcon";
 
 function hubIdFromLabel(label: string): string | null {
   return label.startsWith("orb-") ? label.slice(4) : null;
@@ -151,7 +152,7 @@ export function OrbApp() {
       }}
     >
       <div className="orb-disc">
-        <span>{letter}</span>
+        <HubIcon icon={hub.icon} fallback={letter} className="orb-hub-icon" />
       </div>
     </div>
   );

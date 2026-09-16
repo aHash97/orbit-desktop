@@ -28,6 +28,8 @@ pub struct AppConfig {
 pub struct Hub {
     pub id: String,
     pub name: String,
+    #[serde(default)]
+    pub icon: Option<String>,
     pub x: f64,
     pub y: f64,
     pub monitor: u32,

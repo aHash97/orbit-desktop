@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { getVersion } from "@tauri-apps/api/app";
+import { listen } from "@tauri-apps/api/event";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { api } from "../api";
 import type { AppConfig } from "../types";
 import { checkForUpdate, installUpdate, type UpdateStatus } from "../updates";
+import { HubIcon } from "../ui/HubIcon";
 
 export function SettingsApp() {
   const [cfg, setCfg] = useState<AppConfig | null>(null);
@@ -19,6 +21,11 @@ export function SettingsApp() {
     void api.getConfig().then(setCfg);
     void isEnabled().then(setAuto);
     void getVersion().then(setVersion);
+    let unlisten: (() => void) | undefined;
+    void listen<AppConfig>("config-updated", (event) => setCfg(event.payload)).then((fn) => {
+      unlisten = fn;
+    });
+    return () => unlisten?.();
   }, []);
 
   if (!cfg) {
@@ -116,7 +123,10 @@ export function SettingsApp() {
           {cfg.hubs.map((hub) => (
             <div className="hub-row" key={hub.id}>
               <span className="hub-dot" style={{ ["--accent" as string]: cfg.accent }}>
-                {hub.name.trim().slice(0, 1).toUpperCase() || "O"}
+                <HubIcon
+                  icon={hub.icon}
+                  fallback={hub.name.trim().slice(0, 1).toUpperCase() || "O"}
+                />
               </span>
               <span className="hub-name">{hub.name}</span>
               <button type="button" onClick={() => void editHub(hub.id)}>Edit</button>
@@ -192,7 +202,7 @@ export function SettingsApp() {
 
       <p className="hint">
         Look for each hub orb on the desktop. Right-click an orb, or use Edit above,
-        then drop
+        then right-click its center to rename it, change its icon, or delete it. Drop
         <code> .lnk</code>, <code>.exe</code>, or <code>.url</code> files onto wedges.
         A ring holds at most 12 items. Orbit never moves files on your desktop.
       </p>

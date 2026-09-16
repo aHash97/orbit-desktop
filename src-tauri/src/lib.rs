@@ -76,6 +76,7 @@ fn create_hub(app: AppHandle, state: tauri::State<AppState>) -> Result<Hub, Stri
     let hub = Hub {
         id: uuid::Uuid::new_v4().to_string(),
         name: format!("Hub {n}"),
+        icon: None,
         x: 0.82,
         y: 0.18 + offset,
         monitor: 0,
@@ -124,6 +125,47 @@ fn rename_hub(
         if hub.name.is_empty() {
             hub.name = "Hub".into();
         }
+        config::save(&cfg)?;
+    }
+    let cfg = get_config_snapshot(&app);
+    let _ = app.emit("config-updated", cfg.clone());
+    Ok(cfg)
+}
+
+#[tauri::command]
+fn set_hub_icon(
+    app: AppHandle,
+    state: tauri::State<AppState>,
+    id: String,
+    icon: Option<String>,
+) -> Result<AppConfig, String> {
+    {
+        let mut cfg = state.config.lock().unwrap();
+        let hub = config::find_hub_mut(&mut cfg, &id)?;
+        hub.icon = icon.filter(|value| value.starts_with("builtin:"));
+        config::save(&cfg)?;
+    }
+    let cfg = get_config_snapshot(&app);
+    let _ = app.emit("config-updated", cfg.clone());
+    Ok(cfg)
+}
+
+#[tauri::command]
+fn import_hub_icon(
+    app: AppHandle,
+    state: tauri::State<AppState>,
+    id: String,
+    path: String,
+) -> Result<AppConfig, String> {
+    {
+        let cfg = state.config.lock().unwrap();
+        config::find_hub(&cfg, &id)?;
+    }
+    let stored = icons::import_hub_icon(&id, &path)?;
+    {
+        let mut cfg = state.config.lock().unwrap();
+        let hub = config::find_hub_mut(&mut cfg, &id)?;
+        hub.icon = Some(format!("custom:{}", stored.to_string_lossy()));
         config::save(&cfg)?;
     }
     let cfg = get_config_snapshot(&app);
@@ -589,6 +631,7 @@ pub fn run() {
         cfg.hubs.push(Hub {
             id: uuid::Uuid::new_v4().to_string(),
             name: "Hub 1".into(),
+            icon: None,
             x: 0.82,
             y: 0.25,
             monitor: 0,
@@ -621,6 +664,8 @@ pub fn run() {
             create_hub,
             delete_hub,
             rename_hub,
+            set_hub_icon,
+            import_hub_icon,
             set_hub_items,
             move_hub,
             launch_path,

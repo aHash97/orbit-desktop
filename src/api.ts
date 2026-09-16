@@ -10,6 +10,10 @@ export const api = {
   deleteHub: (id: string) => invoke<AppConfig>("delete_hub", { id }),
   renameHub: (id: string, name: string) =>
     invoke<AppConfig>("rename_hub", { id, name }),
+  setHubIcon: (id: string, icon: string | null) =>
+    invoke<AppConfig>("set_hub_icon", { id, icon }),
+  importHubIcon: (id: string, path: string) =>
+    invoke<AppConfig>("import_hub_icon", { id, path }),
   setHubItems: (id: string, items: MenuItem[]) =>
     invoke<AppConfig>("set_hub_items", { id, items }),
   moveHub: (id: string, x: number, y: number, monitor: number) =>
