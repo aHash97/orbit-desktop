@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -66,6 +68,12 @@ jobs:
           }
           $latest | ConvertTo-Json -Depth 5 | Set-Content $latestFile
 
+          $releaseNotesFile = Join-Path $env:RUNNER_TEMP "RELEASE_NOTES.md"
+          git for-each-ref "refs/tags/$env:GITHUB_REF_NAME" --format="%(contents)" | Set-Content $releaseNotesFile
+          if (-not (Get-Content $releaseNotesFile -Raw).Trim()) {
+            throw "The annotated release tag does not contain release notes."
+          }
+
           gh release create $env:GITHUB_REF_NAME `
             $installer.FullName `
             $signatureFile.FullName `
@@ -73,4 +81,4 @@ jobs:
             $checksumFile `
             --verify-tag `
             --title "Orbit $env:GITHUB_REF_NAME" `
-            --notes-from-tag
+            --notes-file $releaseNotesFile
