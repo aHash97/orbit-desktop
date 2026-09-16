@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { Window } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import { api } from "../api";
 import {
@@ -26,6 +27,12 @@ import {
 import { Icon } from "../ui/Icon";
 
 type Ctx = { x: number; y: number; index: number | "center" | "empty" };
+type CenterDrag = {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  started: boolean;
+};
 
 export function PieApp() {
   const [session, setSession] = useState<PieSession | null>(null);
@@ -36,6 +43,7 @@ export function PieApp() {
     null,
   );
   const [dragId, setDragId] = useState<string | null>(null);
+  const [centerDragging, setCenterDragging] = useState(false);
   const [filesOver, setFilesOver] = useState(false);
   const [notice, setNotice] = useState("");
   const dwellRef = useRef<number | null>(null);
@@ -43,6 +51,8 @@ export function PieApp() {
   const sessionRef = useRef<PieSession | null>(null);
   const itemsRef = useRef<MenuItem[]>([]);
   const pathRef = useRef<string[]>([]);
+  const centerDragRef = useRef<CenterDrag | null>(null);
+  const suppressClickRef = useRef(false);
 
   useEffect(() => {
     let unlistenSession: (() => void) | undefined;
@@ -220,6 +230,35 @@ export function PieApp() {
 
   function onMove(ev: React.PointerEvent) {
     if (!session) return;
+    const centerDrag = centerDragRef.current;
+    if (centerDrag?.pointerId === ev.pointerId) {
+      const distance = Math.hypot(ev.clientX - centerDrag.startX, ev.clientY - centerDrag.startY);
+      if (!centerDrag.started && distance >= 5) {
+        centerDrag.started = true;
+        suppressClickRef.current = true;
+        setCenterDragging(true);
+        clearDwell();
+        clearLeave();
+        setHover(null);
+        void (async () => {
+          const orb = await Window.getByLabel(`orb-${session.hub.id}`);
+          if (!orb) return;
+          await orb.startDragging();
+          await api.finishOrbDrag(session.hub.id);
+          await api.closePie();
+        })().finally(() => {
+          centerDragRef.current = null;
+          setCenterDragging(false);
+          window.setTimeout(() => {
+            suppressClickRef.current = false;
+          }, 250);
+        });
+      }
+      if (centerDrag.started) {
+        ev.preventDefault();
+        return;
+      }
+    }
     clearLeave();
     const x = ev.clientX;
     const y = ev.clientY;
@@ -247,6 +286,10 @@ export function PieApp() {
 
   async function onClick(ev: React.MouseEvent) {
     if (!session || ev.button !== 0) return;
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
     setCtx(null);
     const x = ev.clientX;
     const y = ev.clientY;
@@ -346,11 +389,35 @@ export function PieApp() {
 
   return (
     <div
-      className={`pie-root ${edit ? "edit" : ""} ${
+      className={`pie-root ${edit ? "edit" : ""} ${centerDragging ? "center-dragging" : ""} ${
         items.length <= 4 ? "sparse" : items.length <= 8 ? "medium" : "dense"
       }`}
       style={{ ["--accent" as string]: session.accent }}
+      onPointerDown={(ev) => {
+        if (
+          ev.button === 0 &&
+          hitCenter(ev.clientX, ev.clientY, session.centerX, session.centerY)
+        ) {
+          centerDragRef.current = {
+            pointerId: ev.pointerId,
+            startX: ev.clientX,
+            startY: ev.clientY,
+            started: false,
+          };
+        }
+      }}
       onPointerMove={onMove}
+      onPointerUp={(ev) => {
+        if (centerDragRef.current?.pointerId === ev.pointerId && !centerDragRef.current.started) {
+          centerDragRef.current = null;
+        }
+      }}
+      onPointerCancel={(ev) => {
+        if (centerDragRef.current?.pointerId === ev.pointerId) {
+          centerDragRef.current = null;
+          setCenterDragging(false);
+        }
+      }}
       onPointerLeave={() => {
         if (!edit) leaveRef.current = window.setTimeout(() => void api.closePie(), 220);
       }}

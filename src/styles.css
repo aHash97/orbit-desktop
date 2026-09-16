@@ -214,6 +214,11 @@ body,
   fill: rgba(8, 12, 18, 0.92);
   stroke: color-mix(in srgb, var(--accent) 70%, white);
   stroke-width: 1.5;
+  cursor: grab;
+}
+
+.pie-root.center-dragging .center-disc {
+  cursor: grabbing;
 }
 
 .center-label {
