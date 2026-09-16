@@ -16,6 +16,7 @@ Orbit is **not** a Kando clone. It does not hook Explorer, it does not move your
 - A ring holds **at most 12 items**.
 - Edit mode: click **Add files** to choose `.lnk` / `.exe` / `.url` files, or drop them onto the ring. The editor also exposes that hub's accent color and hub icon.
 - The control center gives every hub its own color, icon picker, **Edit**, and **Delete** controls. The default accent is used only when creating new hubs.
+- **Arrange** in the control center can distribute selected hubs horizontally or vertically, align them to a shared **Middle**, or align them to a shared **Center**. A single hub snaps to the middle or center of its monitor.
 
 Orbit never scans or relocates the shortcuts already on your desktop. You pick what goes in a hub.
 

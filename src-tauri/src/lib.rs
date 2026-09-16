@@ -216,19 +216,140 @@ fn set_hub_items(
 
 #[tauri::command]
 fn move_hub(
-    _app: AppHandle,
+    app: AppHandle,
     state: tauri::State<AppState>,
     id: String,
     x: f64,
     y: f64,
     monitor: u32,
 ) -> Result<(), String> {
-    let mut cfg = state.config.lock().unwrap();
-    let hub = config::find_hub_mut(&mut cfg, &id)?;
-    hub.x = x.clamp(0.02, 0.98);
-    hub.y = y.clamp(0.02, 0.98);
-    hub.monitor = monitor;
-    config::save(&cfg)?;
+    let hub = {
+        let mut cfg = state.config.lock().unwrap();
+        let hub = config::find_hub_mut(&mut cfg, &id)?;
+        hub.x = x.clamp(0.02, 0.98);
+        hub.y = y.clamp(0.02, 0.98);
+        hub.monitor = monitor;
+        let snapshot = hub.clone();
+        config::save(&cfg)?;
+        snapshot
+    };
+    let _ = position_orb(&app, &hub);
+    let cfg = get_config_snapshot(&app);
+    let _ = app.emit("config-updated", cfg);
+    Ok(())
+}
+
+#[tauri::command]
+fn arrange_hubs(
+    app: AppHandle,
+    state: tauri::State<AppState>,
+    ids: Vec<String>,
+    mode: String,
+) -> Result<AppConfig, String> {
+    let moved = {
+        let mut cfg = state.config.lock().unwrap();
+        apply_arrange(&mut cfg.hubs, &ids, &mode)?;
+        config::save(&cfg)?;
+        cfg.hubs
+            .iter()
+            .filter(|hub| ids.iter().any(|id| id == &hub.id))
+            .cloned()
+            .collect::<Vec<_>>()
+    };
+    for hub in &moved {
+        let _ = position_orb(&app, hub);
+    }
+    let cfg = get_config_snapshot(&app);
+    let _ = app.emit("config-updated", cfg.clone());
+    Ok(cfg)
+}
+
+fn apply_arrange(hubs: &mut [Hub], ids: &[String], mode: &str) -> Result<(), String> {
+    if ids.is_empty() {
+        return Err("Select at least one hub".into());
+    }
+    let mut groups: std::collections::BTreeMap<u32, Vec<usize>> =
+        std::collections::BTreeMap::new();
+    for (index, hub) in hubs.iter().enumerate() {
+        if ids.iter().any(|id| id == &hub.id) {
+            groups.entry(hub.monitor).or_default().push(index);
+        }
+    }
+    if groups.is_empty() {
+        return Err("No matching hubs".into());
+    }
+
+    for indices in groups.values_mut() {
+        match mode {
+            "distribute-horizontal" => {
+                if indices.len() < 2 {
+                    continue;
+                }
+                indices.sort_by(|&a, &b| {
+                    hubs[a]
+                        .x
+                        .partial_cmp(&hubs[b].x)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
+                let mut lo = hubs[indices[0]].x;
+                let mut hi = hubs[*indices.last().unwrap()].x;
+                if (hi - lo).abs() < 0.01 {
+                    lo = 0.18;
+                    hi = 0.82;
+                }
+                let last = (indices.len() - 1) as f64;
+                for (step, &index) in indices.iter().enumerate() {
+                    let t = step as f64 / last;
+                    hubs[index].x = (lo + (hi - lo) * t).clamp(0.02, 0.98);
+                }
+            }
+            "distribute-vertical" => {
+                if indices.len() < 2 {
+                    continue;
+                }
+                indices.sort_by(|&a, &b| {
+                    hubs[a]
+                        .y
+                        .partial_cmp(&hubs[b].y)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
+                let mut lo = hubs[indices[0]].y;
+                let mut hi = hubs[*indices.last().unwrap()].y;
+                if (hi - lo).abs() < 0.01 {
+                    lo = 0.18;
+                    hi = 0.82;
+                }
+                let last = (indices.len() - 1) as f64;
+                for (step, &index) in indices.iter().enumerate() {
+                    let t = step as f64 / last;
+                    hubs[index].y = (lo + (hi - lo) * t).clamp(0.02, 0.98);
+                }
+            }
+            "middle" => {
+                let y = if indices.len() == 1 {
+                    0.5
+                } else {
+                    indices.iter().map(|&i| hubs[i].y).sum::<f64>() / indices.len() as f64
+                }
+                .clamp(0.02, 0.98);
+                for &index in indices.iter() {
+                    hubs[index].y = y;
+                }
+            }
+            "center" => {
+                let x = if indices.len() == 1 {
+                    0.5
+                } else {
+                    indices.iter().map(|&i| hubs[i].x).sum::<f64>() / indices.len() as f64
+                }
+                .clamp(0.02, 0.98);
+                for &index in indices.iter() {
+                    hubs[index].x = x;
+                }
+            }
+            _ => return Err(format!("Unknown arrange mode {mode}")),
+        }
+    }
     Ok(())
 }
 
@@ -280,7 +401,7 @@ fn open_settings(app: AppHandle) -> Result<(), String> {
     }
     WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App("index.html".into()))
         .title("Orbit Settings")
-        .inner_size(460.0, 680.0)
+        .inner_size(460.0, 740.0)
         .resizable(false)
         .skip_taskbar(false)
         .visible(true)
@@ -693,6 +814,7 @@ pub fn run() {
             import_hub_icon,
             set_hub_items,
             move_hub,
+            arrange_hubs,
             launch_path,
             open_pie,
             close_pie,

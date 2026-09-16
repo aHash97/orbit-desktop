@@ -20,6 +20,10 @@ export const api = {
     invoke<AppConfig>("set_hub_items", { id, items }),
   moveHub: (id: string, x: number, y: number, monitor: number) =>
     invoke<void>("move_hub", { id, x, y, monitor }),
+  arrangeHubs: (
+    ids: string[],
+    mode: "distribute-horizontal" | "distribute-vertical" | "middle" | "center",
+  ) => invoke<AppConfig>("arrange_hubs", { ids, mode }),
   launch: (path: string) => invoke<void>("launch_path", { path }),
   openPie: (id: string, edit: boolean) => invoke<void>("open_pie", { id, edit }),
   closePie: () => invoke<void>("close_pie"),

@@ -9,6 +9,8 @@ import type { AppConfig } from "../types";
 import { checkForUpdate, installUpdate, type UpdateStatus } from "../updates";
 import { BUILTIN_HUB_ICONS, HubIcon } from "../ui/HubIcon";
 
+type ArrangeMode = "distribute-horizontal" | "distribute-vertical" | "middle" | "center";
+
 export function SettingsApp() {
   const [cfg, setCfg] = useState<AppConfig | null>(null);
   const [auto, setAuto] = useState(false);
@@ -18,13 +20,24 @@ export function SettingsApp() {
   const [updateError, setUpdateError] = useState("");
   const [pendingUpdate, setPendingUpdate] = useState<Update | null>(null);
   const [iconHubId, setIconHubId] = useState<string | null>(null);
+  const [selectedHubIds, setSelectedHubIds] = useState<string[]>([]);
 
   useEffect(() => {
-    void api.getConfig().then(setCfg);
+    void api.getConfig().then((next) => {
+      setCfg(next);
+      setSelectedHubIds(next.hubs.map((hub) => hub.id));
+    });
     void isEnabled().then(setAuto);
     void getVersion().then(setVersion);
     let unlisten: (() => void) | undefined;
-    void listen<AppConfig>("config-updated", (event) => setCfg(event.payload)).then((fn) => {
+    void listen<AppConfig>("config-updated", (event) => {
+      setCfg(event.payload);
+      setSelectedHubIds((prev) => {
+        const available = new Set(event.payload.hubs.map((hub) => hub.id));
+        const kept = prev.filter((id) => available.has(id));
+        return kept.length ? kept : event.payload.hubs.map((hub) => hub.id);
+      });
+    }).then((fn) => {
       unlisten = fn;
     });
     return () => unlisten?.();
@@ -45,8 +58,9 @@ export function SettingsApp() {
   async function createHub() {
     setStatus("Creating hub…");
     try {
-      await api.createHub();
+      const hub = await api.createHub();
       setCfg(await api.getConfig());
+      setSelectedHubIds((prev) => [...prev, hub.id]);
       setStatus("Hub created — its editor is open");
     } catch (error) {
       setStatus(`Could not create hub: ${String(error)}`);
@@ -110,9 +124,43 @@ export function SettingsApp() {
     if (!confirmed) return;
     try {
       setCfg(await api.deleteHub(id));
+      setSelectedHubIds((prev) => prev.filter((hubId) => hubId !== id));
       setStatus("Hub deleted");
     } catch (error) {
       setStatus(`Could not delete hub: ${String(error)}`);
+    }
+  }
+
+  function toggleHubSelection(id: string) {
+    setSelectedHubIds((prev) =>
+      prev.includes(id) ? prev.filter((hubId) => hubId !== id) : [...prev, id],
+    );
+  }
+
+  function selectAllHubs() {
+    if (!cfg) return;
+    setSelectedHubIds(cfg.hubs.map((hub) => hub.id));
+  }
+
+  async function arrangeSelected(mode: ArrangeMode) {
+    const ids = selectedHubIds.length ? selectedHubIds : cfg?.hubs.map((hub) => hub.id) ?? [];
+    if (!ids.length) {
+      setStatus("Create a hub first");
+      return;
+    }
+    try {
+      setCfg(await api.arrangeHubs(ids, mode));
+      setStatus(
+        mode === "distribute-horizontal"
+          ? "Distributed horizontally"
+          : mode === "distribute-vertical"
+            ? "Distributed vertically"
+            : mode === "middle"
+              ? "Aligned to middle"
+              : "Aligned to center",
+      );
+    } catch (error) {
+      setStatus(`Could not arrange hubs: ${String(error)}`);
     }
   }
 
@@ -155,6 +203,10 @@ export function SettingsApp() {
     }
   }
 
+  const allSelected = cfg.hubs.length > 0 && selectedHubIds.length === cfg.hubs.length;
+  const canArrange = selectedHubIds.length > 0 || cfg.hubs.length > 0;
+  const canDistribute = (selectedHubIds.length || cfg.hubs.length) >= 2;
+
   return (
     <div className="settings" style={{ ["--accent" as string]: cfg.accent }}>
       <header>
@@ -178,6 +230,14 @@ export function SettingsApp() {
         <div className="hub-list">
           {cfg.hubs.map((hub) => (
             <div className="hub-row" key={hub.id} style={{ ["--accent" as string]: hub.accent }}>
+              <label className="hub-select" title={`Select ${hub.name}`}>
+                <span className="sr-only">Select {hub.name}</span>
+                <input
+                  type="checkbox"
+                  checked={selectedHubIds.includes(hub.id)}
+                  onChange={() => toggleHubSelection(hub.id)}
+                />
+              </label>
               <span className="hub-dot">
                 <HubIcon
                   icon={hub.icon}
@@ -205,6 +265,50 @@ export function SettingsApp() {
             </div>
           ))}
         </div>
+        {cfg.hubs.length > 0 && (
+          <div className="arrange-bar">
+            <div className="arrange-heading">
+              <span>Arrange</span>
+              <button type="button" className="linkish" onClick={selectAllHubs} disabled={allSelected}>
+                Select all
+              </button>
+            </div>
+            <div className="arrange-actions">
+              <button
+                type="button"
+                disabled={!canDistribute}
+                title="Space selected hubs evenly left to right"
+                onClick={() => void arrangeSelected("distribute-horizontal")}
+              >
+                Distribute horizontally
+              </button>
+              <button
+                type="button"
+                disabled={!canDistribute}
+                title="Space selected hubs evenly top to bottom"
+                onClick={() => void arrangeSelected("distribute-vertical")}
+              >
+                Distribute vertically
+              </button>
+              <button
+                type="button"
+                disabled={!canArrange}
+                title="Align selected hubs to a shared horizontal middle"
+                onClick={() => void arrangeSelected("middle")}
+              >
+                Middle
+              </button>
+              <button
+                type="button"
+                disabled={!canArrange}
+                title="Align selected hubs to a shared vertical center"
+                onClick={() => void arrangeSelected("center")}
+              >
+                Center
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       <label>
@@ -276,7 +380,8 @@ export function SettingsApp() {
         Look for each hub orb on the desktop. Right-click an orb, or use Edit above,
         then right-click its center to rename it, change its icon, or delete it. Drop
         <code> .lnk</code>, <code>.exe</code>, or <code>.url</code> files onto wedges.
-        A ring holds at most 12 items. Orbit never moves files on your desktop.
+        A ring holds at most 12 items. Select hubs above to distribute or align them.
+        Orbit never moves files on your desktop.
       </p>
 
       <div className="actions">
