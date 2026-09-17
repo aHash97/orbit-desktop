@@ -272,8 +272,7 @@ fn apply_arrange(hubs: &mut [Hub], ids: &[String], mode: &str) -> Result<(), Str
     if ids.is_empty() {
         return Err("Select at least one hub".into());
     }
-    let mut groups: std::collections::BTreeMap<u32, Vec<usize>> =
-        std::collections::BTreeMap::new();
+    let mut groups: std::collections::BTreeMap<u32, Vec<usize>> = std::collections::BTreeMap::new();
     for (index, hub) in hubs.iter().enumerate() {
         if ids.iter().any(|id| id == &hub.id) {
             groups.entry(hub.monitor).or_default().push(index);
@@ -358,7 +357,28 @@ fn apply_arrange(hubs: &mut [Hub], ids: &[String], mode: &str) -> Result<(), Str
 }
 
 #[tauri::command]
-fn launch_path(path: String) -> Result<(), String> {
+fn launch_path(app: AppHandle, path: String) -> Result<(), String> {
+    let target = path.trim();
+    if target.is_empty() {
+        return Err("Cannot launch an empty shortcut path.".into());
+    }
+
+    let display_path = target.to_string();
+    let shell_path = std::fs::canonicalize(target)
+        .map(|path| path.to_string_lossy().to_string())
+        .unwrap_or_else(|_| display_path.clone());
+
+    {
+        use tauri_plugin_opener::OpenerExt;
+        if app
+            .opener()
+            .open_path(shell_path.clone(), None::<String>)
+            .is_ok()
+        {
+            return Ok(());
+        }
+    }
+
     #[cfg(windows)]
     {
         use windows::core::HSTRING;
@@ -368,20 +388,23 @@ fn launch_path(path: String) -> Result<(), String> {
             let n = ShellExecuteW(
                 HWND::default(),
                 windows::core::w!("open"),
-                &HSTRING::from(path.as_str()),
+                &HSTRING::from(shell_path.as_str()),
                 None,
                 None,
                 windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL,
             );
-            if (n.0 as usize) <= 32 {
-                return Err(format!("Could not launch {path}"));
+            let code = n.0 as usize;
+            if code <= 32 {
+                return Err(format!(
+                    "Windows could not launch {display_path} (ShellExecute code {code})."
+                ));
             }
         }
         Ok(())
     }
     #[cfg(not(windows))]
     {
-        let _ = path;
+        let _ = shell_path;
         Err("Launch is Windows-only".into())
     }
 }
@@ -423,7 +446,10 @@ fn open_settings(app: AppHandle) -> Result<(), String> {
 
 fn normalize_settings_size(win: &WebviewWindow) {
     use tauri::{LogicalSize, Size};
-    let _ = win.set_size(Size::Logical(LogicalSize::new(SETTINGS_WIDTH, SETTINGS_HEIGHT)));
+    let _ = win.set_size(Size::Logical(LogicalSize::new(
+        SETTINGS_WIDTH,
+        SETTINGS_HEIGHT,
+    )));
 }
 
 fn sync_settings_webview(win: &WebviewWindow) {

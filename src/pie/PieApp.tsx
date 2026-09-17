@@ -240,9 +240,16 @@ export function PieApp() {
       drill(index);
       return;
     }
+    if (!hub) return;
     if (edit) return;
-    await api.launch(item.path);
+    const hubId = hub.id;
     await api.closePie();
+    try {
+      await api.launch(item.path);
+    } catch (error) {
+      setNotice(`Could not launch ${item.name}: ${String(error)}`);
+      await api.openPie(hubId, false);
+    }
   }
 
   function onMove(ev: React.PointerEvent) {
