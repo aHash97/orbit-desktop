@@ -478,12 +478,76 @@ fn shortcut_meta(path: String) -> Result<MenuItem, String> {
     if path.trim().is_empty() {
         return Err("Empty path".into());
     }
+    let path = resolve_shortcut_target(&path)?;
     Ok(MenuItem::Shortcut {
         id: uuid::Uuid::new_v4().to_string(),
         name: config::shortcut_name(&path),
         path,
         icon: None,
     })
+}
+
+fn resolve_shortcut_target(path: &str) -> Result<String, String> {
+    let source = std::path::Path::new(path.trim());
+    let is_lnk = source
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("lnk"));
+    if !is_lnk {
+        return Ok(path.trim().to_string());
+    }
+
+    #[cfg(windows)]
+    {
+        use windows::core::{Interface, HSTRING};
+        use windows::Win32::Foundation::HWND;
+        use windows::Win32::Storage::FileSystem::WIN32_FIND_DATAW;
+        use windows::Win32::System::Com::{
+            CoCreateInstance, CoInitializeEx, CoUninitialize, IPersistFile, CLSCTX_INPROC_SERVER,
+            COINIT_APARTMENTTHREADED, STGM_READ,
+        };
+        use windows::Win32::UI::Shell::{IShellLinkW, ShellLink, SLGP_RAWPATH, SLR_NO_UI};
+
+        unsafe {
+            let initialized = CoInitializeEx(None, COINIT_APARTMENTTHREADED).is_ok();
+            let result = (|| {
+                let link: IShellLinkW = CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER)
+                    .map_err(|e| e.to_string())?;
+                let persist: IPersistFile = link.cast().map_err(|e| e.to_string())?;
+                persist
+                    .Load(
+                        &HSTRING::from(source.to_string_lossy().to_string()),
+                        STGM_READ,
+                    )
+                    .map_err(|e| e.to_string())?;
+                link.Resolve(HWND(std::ptr::null_mut()), SLR_NO_UI.0 as u32)
+                    .map_err(|e| e.to_string())?;
+
+                let mut buffer = [0u16; 32_768];
+                let mut find_data = WIN32_FIND_DATAW::default();
+                link.GetPath(&mut buffer, &mut find_data, SLGP_RAWPATH.0 as u32)
+                    .map_err(|e| e.to_string())?;
+                let length = buffer
+                    .iter()
+                    .position(|value| *value == 0)
+                    .unwrap_or(buffer.len());
+                let target = String::from_utf16(&buffer[..length]).map_err(|e| e.to_string())?;
+                if target.trim().is_empty() {
+                    return Err("The shortcut does not contain a target.".into());
+                }
+                Ok(target)
+            })();
+            if initialized {
+                CoUninitialize();
+            }
+            result
+        }
+    }
+
+    #[cfg(not(windows))]
+    {
+        Ok(path.trim().to_string())
+    }
 }
 
 #[tauri::command]

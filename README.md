@@ -14,7 +14,7 @@ Orbit is **not** a Kando clone. It does not hook Explorer, it does not move your
 - **Hold and drag** an orb to move it anywhere on the desktop; Orbit remembers the position.
 - **Click an icon** to launch it. Orbit closes the pie before handing the shortcut to Windows; if Windows rejects the launch, the pie reopens with an error. Press and move an icon at least a few pixels to reorder it without entering edit mode.
 - A ring holds **at most 12 items**.
-- Edit mode: click **Add files** to choose `.lnk` / `.exe` / `.url` files, or drop them onto the ring. The editor also exposes that hub's accent color and hub icon.
+- Edit mode: click **Add files** to choose `.lnk` / `.exe` / `.url` files, or drop them onto the ring. Orbit resolves Windows `.lnk` files to their real target when importing them, so deleting the desktop shortcut does not remove the app from a hub. The editor also exposes that hub's accent color and hub icon.
 - The control center gives every hub its own color, icon picker, **Edit**, and **Delete** controls. The default accent is used only when creating new hubs.
 - **Arrange** in the control center can distribute selected hubs horizontally or vertically, align them to a shared **Middle**, or align them to a shared **Center**. A single hub snaps to the middle or center of its monitor. The settings window is resizable and keeps a stable size across high-DPI monitors.
 
